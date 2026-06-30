@@ -9,7 +9,15 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background: #0f3c44;
+
+    /* 🔥 BACKGROUND IMAGE + GRADIENT */
+    background: 
+        linear-gradient(rgba(0,50,50,0.7), rgba(0,30,30,0.9)),
+        url('trucks.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
     color: white;
 }
 
@@ -21,7 +29,7 @@ body {
 }
 
 .header img {
-        max-width: 90%;
+    max-width: 90%;
     height: auto;
 }
 
@@ -30,7 +38,7 @@ body {
     text-align: center;
     padding: 10px;
     font-size: 18px;
-    background: #007a87;
+    background: rgba(0, 122, 135, 0.85); /* slight transparency */
     border-bottom: 4px solid #d91e18;
 }
 
@@ -44,18 +52,21 @@ body {
 
 /* CARD BUTTONS */
 .card {
-    background: #1b5f69;
+    background: rgba(0, 80, 80, 0.85); /* ✅ semi-transparent */
     border-radius: 12px;
     padding: 20px;
     text-align: center;
     text-decoration: none;
     color: white;
     font-size: 16px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px); /* ✅ premium glass effect */
+    transition: transform 0.15s ease, background 0.2s ease;
 }
 
 .card:hover {
-    background: #237d89;
+    background: rgba(0, 120, 120, 0.9);
+    transform: translateY(-2px); /* slight lift on hover */
 }
 
 .icon {
@@ -69,23 +80,22 @@ body {
 
 <!-- LOGO -->
 <div class="header">
-    <!-- Replace src with where you upload your logo -->
     <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
 </div>
 
 <div class="title">
-    Main Toolbox Menu - POC
+    🏠 Main Toolbox Menu - POC
 </div>
 
 <div class="grid">
 
 <a class="card" href="secondary.html">
-    <div class="icon">📁</div>
-    Drivers - Daily Forms
+    <div class="icon">👷🚚</div>
+    Drivers – Daily Forms
 </a>
 
 <a class="card" href="Thirdly.html">
-    <div class="icon">📁📁</div>
+    <div class="icon">🧑‍💼📊</div>
     Management – Operational Forms
 </a>
     
@@ -93,5 +103,3 @@ body {
 
 </body>
 </html>
-
-
