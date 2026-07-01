@@ -9,7 +9,17 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background: #0f3c44;
+
+    background: 
+        linear-gradient(rgba(0,50,50,0.7), rgba(0,30,30,0.9)),
+        url('trucks.jpg');
+
+    background-size: cover;
+    background-position: center top; /* ✅ better alignment */
+    background-repeat: no-repeat;
+
+    min-height: 100vh; /* ✅ fills screen */
+
     color: white;
 }
 
