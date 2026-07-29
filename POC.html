@@ -157,8 +157,89 @@ body {
     <div class="icon">🧑‍💼📊</div>
     Management – Operational Forms
 </a>
-    
-</div>
+<div id="noticeOverlay" class="notice-overlay" style="display:none;">
+    <div class="notice-box">
+        <h2 id="noticeTitle"></h2>
+        <p id="noticeMessage"></p>
 
+        <button onclick="closeNotice()">
+            Close
+        </button>
+    </div>
+  .notice-overlay {
+    position: fixed;
+    inset: 0;
+
+    background: rgba(0,0,0,0.65);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    z-index: 9999;
+}
+
+.notice-box {
+    width: 85%;
+    max-width: 500px;
+
+    background: rgba(255,255,255,0.15);
+
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+
+    padding: 25px;
+
+    color: white;
+    text-align: center;
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.35);
+}
+
+.notice-box button {
+    margin-top: 15px;
+
+    padding: 10px 20px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: #007a87;
+    color: white;
+
+    cursor: pointer;
+}  
+</div>    
+</div>
+<script>
+async function loadNotice() {
+
+    const response = await fetch('notice.json');
+    const notice = await response.json();
+
+    if (!notice.enabled) return;
+
+    document.getElementById("noticeTitle").innerText =
+        notice.title;
+
+    document.getElementById("noticeMessage").innerText =
+        notice.message;
+
+    document.getElementById("noticeOverlay").style.display =
+        "flex";
+}
+
+function closeNotice() {
+
+    document.getElementById("noticeOverlay").style.display =
+        "none";
+}
+
+loadNotice();
+</script>
 </body>
 </html>
