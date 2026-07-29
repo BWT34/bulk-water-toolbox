@@ -22,6 +22,12 @@ body {
 
     color: white;
 }
+#datetime {
+    margin-top: 6px;
+    font-size: 13px;
+    opacity: 0.85;
+    font-weight: normal;
+}
 
 /* HEADER */
 .header {
@@ -189,6 +195,31 @@ body {
 <script>
 document.getElementById("datetime").innerHTML =
 "Wednesday 29 July • 10:15am";
+</script>
+<script>
+function updateDateTime() {
+
+    const now = new Date();
+
+    const dateText =
+        now.toLocaleDateString('en-NZ', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long'
+        });
+
+    const timeText =
+        now.toLocaleTimeString('en-NZ', {
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+
+    document.getElementById('datetime').innerHTML =
+        dateText + ' • ' + timeText;
+}
+
+updateDateTime();
+setInterval(updateDateTime, 60000);
 </script>
 
 </body>
