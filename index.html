@@ -203,6 +203,7 @@ function updateDateTime() {
 
     const dateText =
         now.toLocaleDateString('en-NZ', {
+            timeZone: 'Pacific/Auckland',
             weekday: 'long',
             day: 'numeric',
             month: 'long'
@@ -210,6 +211,7 @@ function updateDateTime() {
 
     const timeText =
         now.toLocaleTimeString('en-NZ', {
+            timeZone: 'Pacific/Auckland',
             hour: 'numeric',
             minute: '2-digit'
         });
@@ -219,7 +221,7 @@ function updateDateTime() {
 }
 
 updateDateTime();
-setInterval(updateDateTime, 60000);
+setInterval(updateDateTime, 1000);
 </script>
 
 </body>
