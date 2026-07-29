@@ -260,6 +260,8 @@ body {
 
 <script>
 
+let currentNoticeVersion = 0;
+
 async function loadNotice() {
 
     try {
@@ -271,6 +273,13 @@ async function loadNotice() {
             await response.json();
 
         if (!notice.enabled) return;
+
+        currentNoticeVersion = notice.version;
+
+        const seenVersion =
+            localStorage.getItem('BWTNoticeVersion');
+
+        if (seenVersion == notice.version) return;
 
         document.getElementById('noticeTitle').innerText =
             notice.title;
@@ -292,6 +301,11 @@ async function loadNotice() {
 }
 
 function closeNotice() {
+
+    localStorage.setItem(
+        'BWTNoticeVersion',
+        currentNoticeVersion
+    );
 
     document.getElementById('noticeOverlay').style.display =
         'none';
