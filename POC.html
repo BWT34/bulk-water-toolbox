@@ -300,23 +300,17 @@ async function loadNotice() {
 
         currentNoticeVersion = notice.version;
 
-        const today =
-            new Date().toISOString().split('T')[0];
-
-        const lastSeenDate =
-            localStorage.getItem('BWTNoticeSeenDate');
-
+        
         const lastSeenVersion =
             localStorage.getItem('BWTNoticeVersion');
 
-        /* Same notice already seen today */
+        /* Same notice version already seen */
 
         if (
-            lastSeenDate === today &&
-            lastSeenVersion == notice.version
-        ) {
-            return;
-        }
+    lastSeenVersion == notice.version
+) {
+    return;
+}
 
         document.getElementById('noticeTitle').innerText =
             notice.title;
@@ -339,14 +333,7 @@ async function loadNotice() {
 
 function closeNotice() {
 
-    const today =
-        new Date().toISOString().split('T')[0];
-
-    localStorage.setItem(
-        'BWTNoticeSeenDate',
-        today
-    );
-
+    
     localStorage.setItem(
         'BWTNoticeVersion',
         currentNoticeVersion
