@@ -176,6 +176,71 @@ body {
     font-size: 0.9rem;
     font-weight: 500;
 }
+    
+.notice-box {
+
+    width: 85%;
+    max-width: 550px;
+
+    background: rgba(255,255,255,0.15);
+
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    border: 1px solid rgba(255,255,255,0.15);
+
+    border-radius: 24px;
+
+    padding: 25px;
+
+    color: white;
+
+    text-align: center;
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.35);
+}
+.notice-overlay {
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: 100vw;
+    height: 100vh;
+
+    background: rgba(0,0,0,0.70);
+
+    display: none;
+
+    justify-content: center;
+    align-items: center;
+
+    z-index: 9999;
+}
+.notice-box button {
+
+    margin-top: 15px;
+
+    padding: 12px 25px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: #007a87;
+
+    color: white;
+
+    cursor: pointer;
+
+    font-size: 16px;
+}
+
+.notice-box button:hover {
+
+    background: #0099aa;
+}
 
 .ticker {
     display: inline-block;
@@ -274,8 +339,7 @@ body {
 
 <script>
 
-
-    function updatePortalTicker() {
+function updatePortalTicker() {
 
     const now = new Date();
 
@@ -297,8 +361,66 @@ body {
 updatePortalTicker();
 
 setInterval(updatePortalTicker, 60000);
-</script>
 
+let currentNoticeVersion = 0;
+
+async function loadNotice() {
+
+    try {
+
+        const response =
+            await fetch('notice.json');
+
+        const notice =
+            await response.json();
+
+        if (!notice.enabled) return;
+
+        currentNoticeVersion = notice.version;
+
+        const lastSeenVersion =
+            localStorage.getItem('BWTNoticeVersion');
+
+        if (
+            lastSeenVersion == notice.version
+        ) {
+            return;
+        }
+
+        document.getElementById('noticeTitle').innerText =
+            notice.title;
+
+        document.getElementById('noticeMessage').innerText =
+            notice.message;
+
+        document.getElementById('noticeOverlay').style.display =
+            'flex';
+
+    }
+
+    catch(error) {
+
+        console.log('notice.json not found');
+
+    }
+
+}
+
+function closeNotice() {
+
+    localStorage.setItem(
+        'BWTNoticeVersion',
+        currentNoticeVersion
+    );
+
+    document.getElementById('noticeOverlay').style.display =
+        'none';
+
+}
+
+loadNotice();
+
+</script>
 </body>
 </html>
 
