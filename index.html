@@ -31,17 +31,22 @@ body {
 
 /* HEADER */
 .header {
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+    background: rgba(255,255,255,0.12);
+
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 
     border: 1px solid rgba(255,255,255,0.15);
+
     border-radius: 24px;
 
     margin: 12px;
-    padding: 12px;
+    padding: 8px;
 
     text-align: center;
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.25);
 }
 
 .header img {
@@ -52,15 +57,42 @@ body {
     max-width: 900px;
 
     height: auto;
+
+    animation: logoGlow 3s ease-in-out infinite;
+
 }
 
+@keyframes logoGlow {
+
+    0%,100% {
+
+        filter:
+        drop-shadow(0 0 15px rgba(255,255,255,0.30))
+        drop-shadow(0 0 25px rgba(255,255,255,0.20));
+
+    }
+
+    50% {
+
+        filter:
+        drop-shadow(0 0 35px rgba(255,255,255,0.80))
+        drop-shadow(0 0 60px rgba(255,255,255,0.50))
+        drop-shadow(0 0 80px rgba(255,255,255,0.30));
+
+    }
+
+}
+
+/* MOBILE LOGO */
+
 @media (max-width: 768px) {
+
     .header img {
         width: 80%;
         max-width: 350px;
     }
-}
 
+}
 /* TITLE BAR */
 .title {
     text-align: center;
