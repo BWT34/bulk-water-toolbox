@@ -25,7 +25,7 @@
             rgba(0,50,50,0.45),
             rgba(0,30,30,0.60)
         ),
-        url('Trucks2.jpg');
+        url('trucks.jpg');
 
     background-size: cover;
     background-position: center top;
@@ -79,6 +79,27 @@ body {
     animation: logoGlow 3s ease-in-out infinite;
 }
 
+@keyframes logoGlow {
+
+    0%,100% {
+
+        filter:
+        drop-shadow(0 0 15px rgba(255,255,255,0.30))
+        drop-shadow(0 0 25px rgba(255,255,255,0.20));
+
+    }
+
+    50% {
+
+        filter:
+        drop-shadow(0 0 35px rgba(255,255,255,0.80))
+        drop-shadow(0 0 60px rgba(255,255,255,0.50))
+        drop-shadow(0 0 80px rgba(255,255,255,0.30));
+
+    }
+
+}
+
 /* MOBILE SETTINGS */
 
 @media (max-width: 768px) {
@@ -103,25 +124,6 @@ body {
         width: 80%;
         max-width: 350px;
 
-    }
-
-}
-
-@keyframes logoGlow {
-
-    0%,100% {
-
-        filter:
-        drop-shadow(0 0 15px rgba(255,255,255,0.30))
-        drop-shadow(0 0 25px rgba(255,255,255,0.20));
-    }
-
-    50% {
-
-        filter:
-        drop-shadow(0 0 35px rgba(255,255,255,0.80))
-        drop-shadow(0 0 60px rgba(255,255,255,0.50))
-        drop-shadow(0 0 80px rgba(255,255,255,0.30));
     }
 
 }
@@ -162,227 +164,4 @@ body {
 
     gap: 15px;
 
-    padding: 15px;
-}
-
-/* CARDS */
-
-.card {
-
-    background: rgba(255,255,255,0.18);
-
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-
-    border: 1px solid rgba(255,255,255,0.18);
-
-    border-radius: 24px;
-
-    padding: 25px 15px;
-
-    text-align: center;
-    text-decoration: none;
-
-    color: white;
-
-    font-size: 16px;
-    font-weight: 600;
-
-    box-shadow:
-        0 8px 32px rgba(0,0,0,0.30);
-
-    transition: all 0.25s ease;
-}
-
-.card:hover {
-    transform: translateY(-4px);
-}
-
-.card:active {
-    transform: scale(0.97);
-}
-
-.icon {
-
-    font-size: 42px;
-
-    margin-bottom: 12px;
-}
-
-.notice-box {
-
-    width: 85%;
-    max-width: 550px;
-
-    background: rgba(255,255,255,0.15);
-
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-
-    border: 1px solid rgba(255,255,255,0.15);
-
-    border-radius: 24px;
-
-    padding: 25px;
-
-    color: white;
-
-    text-align: center;
-
-    box-shadow:
-        0 8px 32px rgba(0,0,0,0.35);
-}
-
-.notice-overlay {
-
-    position: fixed;
-
-    top: 0;
-    left: 0;
-
-    width: 100vw;
-    height: 100vh;
-
-    background: rgba(0,0,0,0.70);
-
-    display: none;
-
-    justify-content: center;
-    align-items: center;
-
-    z-index: 9999;
-}
-
-.notice-box button {
-
-    margin-top: 15px;
-
-    padding: 12px 25px;
-
-    border: none;
-    border-radius: 12px;
-
-    background: #007a87;
-
-    color: white;
-
-    cursor: pointer;
-
-    font-size: 16px;
-}
-
-.notice-box button:hover {
-
-    background: #0099aa;
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="header">
-    <img src="BWT LOGO.jpg" alt="ss="title">
-    🏠 Main Toolbox Menu
-</div>
-
-<div class="grid">
-
-    <a class="card" href="secondary.html">
-        <div class="icon">👷🚚</div>
-        Drivers – Daily Forms
-    </a>
-
-    <a class="card" href="Thirdly.html">
-        <div class="icon">🧑‍💼📊</div>
-        Management – Operational Forms
-    </a>
-
-</div>
-
-<!-- NOTICE POPUP -->
-
-<div id="noticeOverlay" class="notice-overlay">
-
-    <div class="notice-box">
-
-        <h2 id="noticeTitle"></h2>
-
-        <p id="noticeMessage"></p>
-
-        <button onclick="closeNotice()">
-            Close
-        </button>
-
-    </div>
-
-</div>
-
-<script>
-
-let currentNoticeVersion = 0;
-
-async function loadNotice() {
-
-    try {
-
-        const response =
-            await fetch('notice.json');
-
-        const notice =
-            await response.json();
-
-        if (!notice.enabled) return;
-
-        currentNoticeVersion = notice.version;
-
-        
-        const lastSeenVersion =
-            localStorage.getItem('BWTNoticeVersion');
-
-        /* Same notice version already seen */
-
-        if (
-    lastSeenVersion == notice.version
-) {
-    return;
-}
-
-        document.getElementById('noticeTitle').innerText =
-            notice.title;
-
-        document.getElementById('noticeMessage').innerText =
-            notice.message;
-
-        document.getElementById('noticeOverlay').style.display =
-            'flex';
-
-    }
-
-    catch(error) {
-
-        console.log('notice.json not found');
-
-    }
-
-}
-
-function closeNotice() {
-
-    
-    localStorage.setItem(
-        'BWTNoticeVersion',
-        currentNoticeVersion
-    );
-
-    document.getElementById('noticeOverlay').style.display =
-        'none';
-
-}
-
-loadNotice();
-
-</script>
-
-</body>
-</html>
+  
