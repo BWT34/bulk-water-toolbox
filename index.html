@@ -10,25 +10,38 @@ body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
 
-    background: 
-        linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
+    background:
+        linear-gradient(
+            rgba(0,50,50,0.45),
+            rgba(0,30,30,0.60)
+        ),
         url('trucks.jpg');
 
     background-size: cover;
-    background-position: center top; /* ✅ better alignment */
+    background-position: center top;
     background-repeat: no-repeat;
 
     background-attachment: fixed;
 
-    min-height: 100vh; /* ✅ fills screen */
+    min-height: 100vh;
 
     color: white;
-    
+}
+
+/* MOBILE SETTINGS */
+
 @media (max-width: 768px) {
+
     body {
         background-position: 70% top;
-      }  
-    
+        background-attachment: fixed;
+    }
+
+    .header img {
+        width: 80%;
+        max-width: 350px;
+    }
+
 }
 #datetime {
     margin-top: 6px;
