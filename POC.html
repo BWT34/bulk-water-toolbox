@@ -8,28 +8,46 @@
 
 <style>
 
-body {
-    margin: 0;
-    font-family: -apple-system, Arial, sans-serif;
+.bg-image {
+
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: 100vw;
+    height: 100vh;
+
+    z-index: -1;
 
     background:
-        linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
+        linear-gradient(
+            rgba(0,50,50,0.45),
+            rgba(0,30,30,0.60)
+        ),
         url('trucks.jpg');
 
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
 
-    background-attachment: fixed;
-    
+}
+
+body {
+
+    margin: 0;
+    font-family: -apple-system, Arial, sans-serif;
+
     min-height: 100vh;
 
     color: white;
+
 }
 
 /* HEADER */
 
 .header {
+
     background: rgba(255,255,255,0.12);
 
     backdrop-filter: blur(20px);
@@ -49,6 +67,7 @@ body {
 }
 
 .header img {
+
     display: block;
     margin: 0 auto;
 
@@ -58,6 +77,33 @@ body {
     height: auto;
 
     animation: logoGlow 3s ease-in-out infinite;
+}
+
+/* MOBILE SETTINGS */
+
+@media (max-width: 768px) {
+
+    .bg-image {
+
+        background:
+            linear-gradient(
+                rgba(0,50,50,0.45),
+                rgba(0,30,30,0.60)
+            ),
+            url('Trucks2.jpg');
+
+        background-size: cover;
+        background-position: center 20%;
+        background-repeat: no-repeat;
+
+    }
+
+    .header img {
+
+        width: 80%;
+        max-width: 350px;
+
+    }
 
 }
 
@@ -68,7 +114,6 @@ body {
         filter:
         drop-shadow(0 0 15px rgba(255,255,255,0.30))
         drop-shadow(0 0 25px rgba(255,255,255,0.20));
-
     }
 
     50% {
@@ -77,22 +122,6 @@ body {
         drop-shadow(0 0 35px rgba(255,255,255,0.80))
         drop-shadow(0 0 60px rgba(255,255,255,0.50))
         drop-shadow(0 0 80px rgba(255,255,255,0.30));
-
-    }
-
-}
-
-/* MOBILE LOGO */
-
-/* MOBILE LOGO + 768px) {
-
-    .header img {
-        width: 80%;
-        max-width: 350px;
-    }
-
-    body {
-        background-position: 70% top;
     }
 
 }
@@ -203,6 +232,7 @@ body {
     box-shadow:
         0 8px 32px rgba(0,0,0,0.35);
 }
+
 .notice-overlay {
 
     position: fixed;
@@ -222,6 +252,7 @@ body {
 
     z-index: 9999;
 }
+
 .notice-box button {
 
     margin-top: 15px;
@@ -246,7 +277,6 @@ body {
 }
 
 </style>
-
 </head>
 
 <body>
