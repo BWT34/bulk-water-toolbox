@@ -3,71 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Bulk Water Toolbox - POC</title>
+<title>Proof of Concept  – Operational Forms</title>
 
 <style>
-
-.bg-image {
-
-    position: fixed;
-
-    top: 0;
-    left: 0;
-
-    width: 100vw;
-    height: 100vh;
-
-    z-index: -1;
-
-    background:
-        linear-gradient(
-            rgba(0,50,50,0.45),
-            rgba(0,30,30,0.60)
-        ),
-        url('trucks.jpg');
-
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
-
-}
-
 body {
-
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
 
-    min-height: 100vh;
+    background: 
+        linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
+        url('trucks.jpg');
+
+    background-size: cover;
+    background-position: center top; /* ✅ better alignment */
+    background-repeat: no-repeat;
+
+    
+    background-attachment: fixed;
+    
+    min-height: 100vh; /* ✅ fills screen */
 
     color: white;
-
 }
 
 /* HEADER */
-
 .header {
-
-    background: rgba(255,255,255,0.12);
-
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
 
     border: 1px solid rgba(255,255,255,0.15);
-
     border-radius: 24px;
 
     margin: 12px;
-    padding: 8px;
+    padding: 12px;
 
     text-align: center;
-
-    box-shadow:
-        0 8px 32px rgba(0,0,0,0.25);
 }
 
 .header img {
-
     display: block;
     margin: 0 auto;
 
@@ -75,63 +49,18 @@ body {
     max-width: 900px;
 
     height: auto;
-
-    animation: logoGlow 3s ease-in-out infinite;
 }
-
-@keyframes logoGlow {
-
-    0%,100% {
-
-        filter:
-        drop-shadow(0 0 15px rgba(255,255,255,0.30))
-        drop-shadow(0 0 25px rgba(255,255,255,0.20));
-
-    }
-
-    50% {
-
-        filter:
-        drop-shadow(0 0 35px rgba(255,255,255,0.80))
-        drop-shadow(0 0 60px rgba(255,255,255,0.50))
-        drop-shadow(0 0 80px rgba(255,255,255,0.30));
-
-    }
-
-}
-
-/* MOBILE SETTINGS */
 
 @media (max-width: 768px) {
-
-    .bg-image {
-
-        background:
-            linear-gradient(
-                rgba(0,50,50,0.45),
-                rgba(0,30,30,0.60)
-            ),
-            url('Trucks2.jpg');
-
-        background-size: cover;
-        background-position: center 20%;
-        background-repeat: no-repeat;
-
-    }
-
     .header img {
-
         width: 80%;
         max-width: 350px;
-
     }
-
 }
 
+
 /* TITLE BAR */
-
 .title {
-
     text-align: center;
 
     margin: 0 12px 12px 12px;
@@ -156,12 +85,87 @@ body {
 }
 
 /* GRID */
-
 .grid {
-
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-
     gap: 15px;
+    padding: 15px;
+}
 
-  
+/* CARD BUTTONS */
+.card {
+    background: rgba(255,255,255,0.18);
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    border: 1px solid rgba(255,255,255,0.18);
+
+    border-radius: 24px;
+
+    padding: 25px 15px;
+
+    text-align: center;
+    text-decoration: none;
+    color: white;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.30);
+
+    transition: all 0.25s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    background: rgba(255,255,255,0.18);
+}
+
+.card:active {
+    transform: scale(0.97);
+}
+
+.icon {
+    font-size: 42px;
+    margin-bottom: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGO -->
+<div class="header">
+    <!-- Replace src with where you upload your logo -->
+    <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
+</div>
+
+<div class="title">
+    Management – Operational Forms
+</div>
+
+<div class="grid">
+
+<a class="card" href="index.html">
+    <div class="icon">🏠📁</div>
+    Back to main page
+</a>
+    
+
+<a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/VehicleServiceSummary">
+    <div class="icon">🔍📋</div>
+    Vehicle Service Summary
+</a>
+
+    <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/VehicleServiceMaintenanceRecord">
+    <div class="icon">🛠️🔩</div>
+    Vehicle Service and Maintenace Record
+</a>
+
+
+</div>
+
+</body>
+</html>
