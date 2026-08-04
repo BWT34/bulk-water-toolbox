@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRN-OPS-001 | After-Hours On-Call Response Training | Bulk Water Transport Ltd</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --navy: #0a1628; --deep: #0d1f3c; --water: #1a6b8a; --water-light: #2a9bbf; --water-bright: #4dc4e8;
+    --amber: #f59e0b; --danger: #ef4444; --success: #22c55e; --slate: #94a3b8; --white: #f8fafc;
+    --card: #111d35; --border: rgba(74, 196, 232, 0.15);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; overflow-x: hidden; }
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+  #screen-welcome { background: linear-gradient(160deg, #0a1628 0%, #0d2a4a 50%, #0a1628 100%); position: relative; overflow: hidden; align-items: center; justify-content: center; padding: 2rem; }
+  #screen-welcome::before { content: ''; position: absolute; top: -20%; left: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(26,107,138,0.25) 0%, transparent 70%); pointer-events: none; }
+  #screen-welcome::after { content: ''; position: absolute; bottom: -10%; right: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(77,196,232,0.1) 0%, transparent 70%); pointer-events: none; }
+  .welcome-content { max-width: 720px; width: 100%; text-align: center; position: relative; z-index: 1; animation: fadeUp 0.8s ease both; }
+  .logo-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(77,196,232,0.1); border: 1px solid var(--border); border-radius: 2rem; padding: 0.4rem 1rem; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--water-bright); margin-bottom: 2rem; }
+  .drop-icon { font-size: 1.1rem; }
+  h1.hero { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 7vw, 5.2rem); line-height: 0.95; letter-spacing: 0.02em; color: var(--white); margin-bottom: 0.5rem; }
+  h1.hero span { color: var(--water-bright); }
+  .hero-sub { font-size: 1.1rem; color: var(--slate); margin: 1.5rem 0 2.5rem; line-height: 1.6; max-width: 560px; margin-left: auto; margin-right: auto; }
+  .module-pills { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-bottom: 2.5rem; }
+  .pill { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.4rem 0.9rem; font-size: 0.78rem; color: var(--slate); display: flex; align-items: center; gap: 0.4rem; }
+  .pill-num { background: var(--water); color: white; border-radius: 50%; width: 1.2rem; height: 1.2rem; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 600; }
+  .btn-primary { background: linear-gradient(135deg, var(--water) 0%, var(--water-light) 100%); color: white; border: none; padding: 1rem 2.5rem; border-radius: 0.5rem; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(42,155,191,0.4); }
+  .time-note { margin-top: 1.5rem; font-size: 0.8rem; color: var(--slate); opacity: 0.7; }
+  #screen-module { flex-direction: column; }
+  .top-bar { background: var(--deep); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .top-bar-left { display: flex; align-items: center; gap: 1rem; }
+  .mod-label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--water-bright); font-weight: 500; }
+  .mod-title-bar { font-size: 0.95rem; font-weight: 600; color: var(--white); }
+  .progress-outer { flex: 1; max-width: 200px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-left: 1.5rem; }
+  .progress-inner { height: 100%; background: linear-gradient(90deg, var(--water) 0%, var(--water-bright) 100%); border-radius: 2px; transition: width 0.4s ease; }
+  .progress-label { font-size: 0.72rem; color: var(--slate); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .module-content { flex: 1; max-width: 800px; width: 100%; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+  .slide { display: none; animation: fadeUp 0.4s ease both; }
+  .slide.active { display: block; }
+  .slide-tag { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--water-bright); font-weight: 500; margin-bottom: 0.8rem; font-family: 'DM Mono', monospace; }
+  .slide h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(1.8rem, 4.5vw, 2.8rem); line-height: 1; color: var(--white); margin-bottom: 1.2rem; letter-spacing: 0.03em; }
+  .slide h2 span { color: var(--water-bright); }
+  .slide p { color: #cbd5e1; line-height: 1.75; font-size: 0.97rem; margin-bottom: 1rem; }
+  .slide p strong { color: var(--white); }
+  .objectives-box { background: rgba(77,196,232,0.06); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem 1.4rem; margin-bottom: 1.5rem; }
+  .objectives-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--water-bright); margin-bottom: 0.6rem; }
+  .objectives-box ol { margin: 0; padding-left: 1.1rem; color: #cbd5e1; font-size: 0.88rem; line-height: 1.7; }
+  .incident-card { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-left: 4px solid var(--danger); border-radius: 0.5rem; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .incident-card.type-blue { background: rgba(77,196,232,0.08); border-color: rgba(77,196,232,0.3); border-left-color: var(--water-bright); }
+  .incident-card.type-amber { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); border-left-color: var(--amber); }
+  .incident-card .ic-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--danger); font-weight: 600; margin-bottom: 0.6rem; font-family: 'DM Mono', monospace; }
+  .incident-card.type-blue .ic-label { color: var(--water-bright); }
+  .incident-card.type-amber .ic-label { color: var(--amber); }
+  .incident-card p { color: #fca5a5; font-size: 0.9rem; margin-bottom: 0.4rem; }
+  .incident-card.type-blue p { color: #bae6fd; }
+  .incident-card.type-amber p { color: #fde68a; }
+  .incident-card .ic-lesson { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid rgba(239,68,68,0.2); color: #fecaca; font-size: 0.85rem; font-style: italic; }
+  .incident-card.type-blue .ic-lesson { border-top-color: rgba(77,196,232,0.2); color: #bae6fd; }
+  .incident-card.type-amber .ic-lesson { border-top-color: rgba(245,158,11,0.2); color: #fde68a; }
+  .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1.2rem 1.5rem; margin: 1rem 0; }
+  .info-card h4 { font-size: 0.85rem; font-weight: 600; color: var(--water-bright); margin-bottom: 0.6rem; }
+  .info-card p { font-size: 0.9rem; margin-bottom: 0; }
+  .warning-box { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35); border-left: 4px solid var(--amber); border-radius: 0.5rem; padding: 1.1rem 1.4rem; margin: 1.5rem 0; }
+  .warning-box .w-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--amber); font-weight: 600; margin-bottom: 0.5rem; font-family: 'DM Mono', monospace; }
+  .warning-box p { color: #fde68a; font-size: 0.9rem; margin-bottom: 0; }
+  .success-box { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); border-left: 4px solid var(--success); border-radius: 0.5rem; padding: 1.1rem 1.4rem; margin: 1.5rem 0; }
+  .success-box .s-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--success); font-weight: 600; margin-bottom: 0.5rem; font-family: 'DM Mono', monospace; }
+  .success-box p { color: #bbf7d0; font-size: 0.9rem; margin-bottom: 0; }
+  .danger-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.35); border-left: 4px solid var(--danger); border-radius: 0.5rem; padding: 1.1rem 1.4rem; margin: 1.5rem 0; font-weight: 600; }
+  .danger-box p { color: #fca5a5; font-size: 0.9rem; margin-bottom: 0; }
+  .check-list { list-style: none; margin: 1rem 0; }
+  .check-list li { display: flex; gap: 0.8rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.92rem; color: #cbd5e1; align-items: flex-start; }
+  .check-list li:last-child { border-bottom: none; }
+  .check-list li::before { content: '▸'; color: var(--water-bright); flex-shrink: 0; margin-top: 0.1rem; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  @media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem 1.2rem; }
+  .col-card.do { border-top: 3px solid var(--success); }
+  .col-card.dont { border-top: 3px solid var(--danger); }
+  .col-card h4 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--water-bright); margin-bottom: 0.8rem; }
+  .col-card.do h4 { color: var(--success); }
+  .col-card.dont h4 { color: var(--danger); }
+  .col-card ul { list-style: none; font-size: 0.85rem; color: #94a3b8; line-height: 1.8; }
+  .col-card ul li::before { content: '• '; color: var(--water-bright); }
+  .col-card p { font-size: 0.88rem; color: #94a3b8; line-height: 1.6; margin: 0; }
+  .data-table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.88rem; }
+  .data-table th { background: rgba(26,107,138,0.3); color: var(--water-bright); padding: 0.7rem 1rem; text-align: left; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .flow-wrap { display: flex; flex-direction: column; gap: 0; margin: 1rem 0; }
+  .flow-step { display: flex; gap: 1rem; align-items: flex-start; background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.9rem 1.1rem; margin-bottom: 0.3rem; position: relative; }
+  .flow-step::after { content: '↓'; position: absolute; bottom: -14px; left: 30px; font-size: 14px; color: var(--water-bright); font-weight: 700; z-index: 1; }
+  .flow-step:last-child::after { display: none; }
+  .flow-num { width: 30px; height: 30px; border-radius: 50%; background: var(--water); color: white; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .flow-who { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--water-bright); margin-bottom: 0.2rem; }
+  .flow-action { font-size: 0.88rem; color: #cbd5e1; line-height: 1.5; }
+  .quiz-q { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .quiz-q .q-text { font-size: 1rem; font-weight: 500; color: var(--white); margin-bottom: 0.8rem; line-height: 1.5; }
+  .quiz-context { font-size: 0.85rem; color: var(--slate); font-style: italic; margin-bottom: 1rem; padding: 0.6rem 0.9rem; background: rgba(77,196,232,0.06); border-radius: 0.4rem; line-height: 1.55; }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .quiz-opt { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.4rem; padding: 0.8rem 1rem; cursor: pointer; font-size: 0.9rem; color: #cbd5e1; transition: all 0.15s; text-align: left; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 0.8rem; }
+  .quiz-opt:hover:not(.answered) { background: rgba(42,155,191,0.12); border-color: rgba(42,155,191,0.4); color: var(--white); }
+  .quiz-opt.correct { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.5); color: #bbf7d0; }
+  .quiz-opt.wrong { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+  .opt-letter { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 600; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+  .quiz-feedback { margin-top: 1rem; padding: 0.9rem 1.1rem; border-radius: 0.4rem; font-size: 0.88rem; display: none; line-height: 1.5; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.correct-fb { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #bbf7d0; }
+  .quiz-feedback.wrong-fb { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  .btn-nav { background: var(--card); border: 1px solid var(--border); color: var(--white); padding: 0.75rem 1.5rem; border-radius: 0.4rem; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-nav:hover { border-color: var(--water-bright); color: var(--water-bright); }
+  .btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-nav-primary { background: linear-gradient(135deg, var(--water) 0%, var(--water-light) 100%); border: none; color: white; padding: 0.75rem 1.8rem; border-radius: 0.4rem; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-nav-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(42,155,191,0.35); }
+  #screen-complete { align-items: center; justify-content: center; padding: 2rem; background: linear-gradient(160deg, #0a1628 0%, #0d2a4a 50%, #0a1628 100%); text-align: center; }
+  .complete-content { max-width: 640px; animation: fadeUp 0.6s ease both; width: 100%; }
+  .complete-icon { font-size: 4rem; margin-bottom: 1rem; }
+  .score-display { font-family: 'Bebas Neue', sans-serif; font-size: 4.5rem; color: var(--water-bright); line-height: 1; margin: 1rem 0; }
+  .score-label { color: var(--slate); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .module-dots { display: flex; gap: 0.4rem; align-items: center; }
+  .m-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: all 0.2s; }
+  .m-dot.done { background: var(--success); }
+  .m-dot.active { background: var(--water-bright); transform: scale(1.3); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeUp 0.4s ease both; }
+  .callout { background: rgba(77,196,232,0.08); border: 1px solid rgba(77,196,232,0.2); border-radius: 0.5rem; padding: 1.1rem 1.4rem; margin: 1.2rem 0; font-size: 0.9rem; color: #bae6fd; line-height: 1.6; }
+  .doc-footer { text-align: center; padding: 14px 20px; font-size: 12px; color: var(--slate); border-top: 1px solid var(--border); background: var(--deep); }
+  /* SIGN-OFF (light, print-friendly) */
+  .signoff-card { background: #f4f6fb; color: #1a1a1a; border-radius: 0.6rem; padding: 1.6rem 1.8rem; margin-top: 1.8rem; text-align: left; }
+  .signoff-card h3 { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 700; color: #1B3A6B; margin-bottom: 0.4rem; }
+  .signoff-card .signoff-sub { font-size: 0.85rem; color: #555; margin-bottom: 1rem; }
+  .signoff-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .signoff-table th { background: #1B3A6B; color: white; padding: 0.6rem 0.8rem; text-align: left; font-size: 0.75rem; }
+  .signoff-table td { padding: 0.6rem 0.8rem; border-bottom: 1px solid #ddd; color: #1a1a1a; }
+  .signoff-table tr:nth-child(even) td { background: #E8EEF7; }
+  .signoff-input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid #ccc; border-radius: 0.3rem; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; }
+  .signoff-actions { margin-top: 1rem; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .btn-print { background: var(--amber); color: white; border: none; padding: 0.7rem 1.4rem; border-radius: 0.4rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  @media print {
+    .top-bar, .nav-bar, #screen-welcome, .doc-footer, .btn-print { display: none !important; }
+    body { background: white; }
+    .signoff-card { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<div id="screen-welcome" class="screen active">
+  <div class="welcome-content">
+    <div class="logo-badge"><span class="drop-icon">💧</span> Bulk Water Transport</div>
+    <h1 class="hero">THE PHONE<br><span>DOESN'T SLEEP.</span></h1>
+    <p class="hero-sub">
+      After-Hours On-Call Response — the Tiaki Wai Hotline, the roster, the fitness self-check, and what
+      happens after the callout. This is a contractual obligation BWT has committed to. Know it cold.
+    </p>
+    <div class="module-pills">
+      <div class="pill"><span class="pill-num">1</span> The Arrangement</div>
+      <div class="pill"><span class="pill-num">2</span> The Hotline</div>
+      <div class="pill"><span class="pill-num">3</span> Fit to Respond</div>
+      <div class="pill"><span class="pill-num">4</span> After the Callout</div>
+      <div class="pill"><span class="pill-num">5</span> Scenarios</div>
+    </div>
+    <button class="btn-primary" onclick="startCourse()">Begin Training →</button>
+    <p class="time-note">⏱ 5 modules · complete at your own pace · 3/3 required to complete</p>
+  </div>
+</div>
+
+<div id="screen-module" class="screen">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <div><div class="mod-label" id="mod-label">Module 1</div><div class="mod-title-bar" id="mod-title-bar">The Arrangement</div></div>
+      <div class="progress-outer"><div class="progress-inner" id="progress-bar" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">0%</div>
+    </div>
+    <div class="module-dots" id="module-dots"></div>
+  </div>
+  <div class="module-content">
+    <div id="slides-container"></div>
+    <div class="nav-bar">
+      <button class="btn-nav" id="btn-prev" onclick="prevSlide()">← Back</button>
+      <button class="btn-nav-primary" id="btn-next" onclick="nextSlide()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-complete" class="screen">
+  <div class="complete-content">
+    <div class="complete-icon">✅</div>
+    <p class="score-label">Quiz Score</p>
+    <div class="score-display" id="final-score">—</div>
+    <p class="score-label" id="final-outcome"></p>
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;margin:1.5rem 0 1rem;">Training Complete</h2>
+    <p style="color:#94a3b8;line-height:1.7;margin-bottom:1.5rem;">
+      You've completed TRN-OPS-001 — After-Hours On-Call Response Training. Speak to the Operations Manager
+      if you have questions about any of the content.
+    </p>
+    <div class="signoff-card">
+      <h3>Training Record — Sign-Off</h3>
+      <div class="signoff-sub">Complete the details below to record completion. A 3/3 score is required.</div>
+      <table class="signoff-table">
+        <tbody><tr><th style="width:35%">Field</th><th>Details</th></tr>
+        <tr><td><strong>Document</strong></td><td>TRN-OPS-001 — After-Hours On-Call Response Training v1.0</td></tr>
+        <tr><td><strong>Staff Member Name</strong></td><td><input type="text" class="signoff-input" id="staffName" placeholder="Enter your full name"></td></tr>
+        <tr><td><strong>Role</strong></td><td><input type="text" class="signoff-input" id="staffRole" placeholder="Enter your role or position"></td></tr>
+        <tr><td><strong>Date Completed</strong></td><td><input type="text" class="signoff-input" id="completionDate" placeholder="e.g. 14 July 2026"></td></tr>
+        <tr><td><strong>Quiz Score</strong></td><td id="signoffScore">—</td></tr>
+        <tr><td><strong>Outcome</strong></td><td id="signoffOutcome">—</td></tr>
+      </tbody></table>
+      <div class="signoff-actions">
+        <button class="btn-print" onclick="window.print()">🖨️ Print Training Record</button>
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:1.5rem" onclick="restartCourse()">Restart Course</button>
+  </div>
+</div>
+
+<div class="doc-footer">Bulk Water Transport Ltd &nbsp;|&nbsp; TRN-OPS-001 &nbsp;|&nbsp; v1.0 &nbsp;|&nbsp; July 2026 &nbsp;|&nbsp; CONFIDENTIAL</div>
+
+<script>
+const modules = [
+  {
+    label: 'Module 1 of 5',
+    title: 'The Arrangement',
+    slides: [
+      {
+        tag: 'Module 1 · Why This Arrangement Exists',
+        html: `
+          <h2>THE ONE NUMBER <span>THAT NEVER SLEEPS</span></h2>
+          <div class="objectives-box">
+            <div class="objectives-title">By the end of this module you will be able to:</div>
+            <ol><li>Explain what the on-call arrangement covers and who it applies to.</li><li>State how the roster, on-call fee, and swaps work.</li><li>Apply the Hotline exclusivity rule.</li></ol>
+          </div>
+          <p>Tiaki Wai is the only BWT client with a contractual after-hours response obligation. When their network has a problem outside business hours — a burst main, a supply failure, an urgent water need — BWT has committed to answering and responding.</p>
+          <p>A dedicated on-call phone (the <strong>Hotline</strong>) is used exclusively for Tiaki Wai. After hours means outside 7:00 am – 5:00 pm, including weekends and public holidays. During business hours the number is transferred to the Operations Manager for normal dispatch.</p>
+          <div class="danger-box"><p>✗ The Hotline number is never given to any other client, supplier, or member of the public. No exceptions. If the number leaks, the arrangement stops working.</p></div>
+        `
+      },
+      {
+        tag: 'Module 1 · The Roster and the Fee',
+        html: `
+          <h2>THE ROSTER <span>AND THE FEE</span></h2>
+          <table class="data-table">
+            <thead><tr><th style="width:35%">Element</th><th>How it works</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Rotation</strong></td><td>Week-about, rotating through the roster pool of six staff.</td></tr>
+              <tr><td><strong>On-call fee</strong></td><td>$225.00 per week for carrying the phone and remaining available and fit to respond.</td></tr>
+              <tr><td><strong>Callout hours</strong></td><td>Hours worked attending a callout are paid on top of the fee, at your usual hourly or after-hours rates.</td></tr>
+              <tr><td><strong>Hours limit</strong></td><td>You are rostered to no more than a 40-hour working week during your on-call week.</td></tr>
+              <tr><td><strong>Swaps</strong></td><td>Permitted by agreement between the two staff involved, with the Operations Manager advised before the week begins.</td></tr>
+            </tbody>
+          </table>
+          <div class="callout">The fee is paid for availability and fitness — not just for carrying a phone. Being on call means being ready to safely drive a heavy vehicle at 2 am if the call comes.</div>
+        `
+      }
+    ]
+  },
+  {
+    label: 'Module 2 of 5',
+    title: 'The Hotline',
+    slides: [
+      {
+        tag: 'Module 2 · Handover at Rotation',
+        html: `
+          <h2>HANDOVER <span>AT ROTATION</span></h2>
+          <div class="objectives-box">
+            <div class="objectives-title">By the end of this module you will be able to:</div>
+            <ol><li>Complete a Hotline handover correctly at rotation.</li><li>Capture the right details when a callout comes in.</li><li>Handle a caller who isn't Tiaki Wai.</li></ol>
+          </div>
+          <ul class="check-list">
+            <li>The outgoing on-call person hands the phone over charged and switched on</li>
+            <li>The incoming on-call person confirms it is charged, on, and receiving calls before taking over the week</li>
+            <li>The Operations Manager maintains the business-hours transfer so daytime requests go through normal dispatch</li>
+          </ul>
+          <div class="warning-box"><div class="w-label">⚠ Key Point</div><p>A flat or switched-off Hotline is an unanswered callout waiting to happen. Confirming the phone works is the incoming person's responsibility — don't assume.</p></div>
+        `
+      },
+      {
+        tag: 'Module 2 · When It Rings',
+        html: `
+          <h2>WHEN IT <span>RINGS</span></h2>
+          <p>Answer, and record four things before anything else:</p>
+          <table class="data-table">
+            <thead><tr><th style="width:30%">Capture</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Caller's name</strong></td><td>Confirms who at Tiaki Wai is requesting the response.</td></tr>
+              <tr><td><strong>Location</strong></td><td>Determines travel time, vehicle, and whether the trailer is needed.</td></tr>
+              <tr><td><strong>Nature of the problem</strong></td><td>Tells you whether this is an emergency callout.</td></tr>
+              <tr><td><strong>Urgency</strong></td><td>Shapes your self-check — an emergency callout may allow the work time emergency provision to be used.</td></tr>
+            </tbody>
+          </table>
+        `
+      },
+      {
+        tag: 'Module 2 · If the Caller Isn\'t Tiaki Wai',
+        html: `
+          <h2>IF THE CALLER <span>ISN'T TIAKI WAI</span></h2>
+          <p>The Hotline number is not distributed to anyone else — so any other caller means the number has leaked. The response is simple:</p>
+          <div class="two-col">
+            <div class="col-card do"><h4>✓ Do this</h4><ul><li>Redirect them politely to the office number for follow-up the next business day</li><li>Let the Operations Manager know the number has been given out, so it can be managed</li></ul></div>
+            <div class="col-card dont"><h4>✗ Do not</h4><ul><li>Attend the job — the arrangement exists for Tiaki Wai only</li><li>Tell them to call the Hotline back later — it isn't their number to use</li></ul></div>
+          </div>
+        `
+      }
+    ]
+  },
+  {
+    label: 'Module 3 of 5',
+    title: 'Fit to Respond',
+    slides: [
+      {
+        tag: 'Module 3 · The Self-Check',
+        html: `
+          <h2>THE SELF-CHECK <span>— TWO QUESTIONS</span></h2>
+          <div class="objectives-box">
+            <div class="objectives-title">By the end of this module you will be able to:</div>
+            <ol><li>Run the self-check before responding to any callout.</li><li>Explain when the work time emergency provision applies and what must be recorded.</li><li>Escalate correctly when you cannot respond safely.</li></ol>
+          </div>
+          <p>Before responding to any callout, ask yourself:</p>
+          <ul class="check-list">
+            <li><strong>Am I fit to drive?</strong> Rested, alert, unimpaired — the fatigue recognition principles from your fatigue training apply here</li>
+            <li><strong>Am I within my work time and rest limits?</strong> Allowing for the emergency provision if this is an emergency callout</li>
+          </ul>
+          <p><strong>Yes to both</strong> — proceed. <strong>No to either</strong> — escalate. There is no third option.</p>
+          <div class="danger-box"><p>✗ Being on call means staying within the Alcohol and Other Drugs Policy limits at all times during your rostered week — including Friday night, including the barbecue on Saturday. If you are not fit to drive, you cannot take the callout, and the arrangement has failed.</p></div>
+        `
+      },
+      {
+        tag: 'Module 3 · The Work Time Rules',
+        html: `
+          <h2>THE WORK TIME <span>RULES</span></h2>
+          <table class="data-table">
+            <thead><tr><th style="width:40%">Limit</th><th>Rule</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Cumulative work day</strong></td><td>Maximum 13 hours of work.</td></tr>
+              <tr><td><strong>Cumulative work period</strong></td><td>Maximum 70 hours before a 24-hour rest.</td></tr>
+              <tr><td><strong>Continuous rest</strong></td><td>Minimum 10 hours between cumulative work days.</td></tr>
+            </tbody>
+          </table>
+          <p>The <strong>emergency provision</strong> of the Land Transport Rule: Work Time and Logbooks 2007 allows these limits to be exceeded in a genuine emergency — including urgent work to restore essential services such as water supply. Two conditions:</p>
+          <ul class="check-list">
+            <li>The callout must genuinely be an emergency — urgent restoration or protection of water supply, or protection of life, property, or public health</li>
+            <li>The reason and the hours worked must be recorded in Site App Pro</li>
+          </ul>
+          <div class="warning-box"><div class="w-label">⚠ Key Point</div><p>The emergency provision extends your legal limits — it does not make you less tired. Fitness comes first, always. A legal response you are too fatigued to drive safely is still an unsafe response.</p></div>
+        `
+      },
+      {
+        tag: 'Module 3 · Escalation',
+        html: `
+          <h2>ESCALATION <span>— WHEN YOU CAN'T RESPOND</span></h2>
+          <div class="flow-wrap">
+            <div class="flow-step"><div class="flow-num">1</div><div><div class="flow-who">Step 1</div><div class="flow-action">Contact the Operations Manager, who will respond or arrange another driver.</div></div></div>
+            <div class="flow-step"><div class="flow-num">2</div><div><div class="flow-who">Step 2</div><div class="flow-action">If the Operations Manager is unavailable, contact the Director.</div></div></div>
+          </div>
+          <div class="success-box"><div class="s-label">✅ Key Point</div><p>Under no circumstances is a Tiaki Wai callout to go unanswered without escalation. Escalating is not letting the team down — it is exactly what the escalation path exists for. The failure is silence, never the phone call.</p></div>
+        `
+      }
+    ]
+  },
+  {
+    label: 'Module 4 of 5',
+    title: 'After the Callout',
+    slides: [
+      {
+        tag: 'Module 4 · Vehicles During Your On-Call Week',
+        html: `
+          <h2>VEHICLES DURING <span>YOUR ON-CALL WEEK</span></h2>
+          <div class="objectives-box">
+            <div class="objectives-title">By the end of this module you will be able to:</div>
+            <ol><li>Apply the vehicle rules for on-call weeks, including home-garaging.</li><li>Record a callout correctly in Site App Pro.</li><li>Apply the post-callout rest rule.</li></ol>
+          </div>
+          <ul class="check-list">
+            <li>Where you live further from the yard, the Operations Manager may confirm a heavy vehicle to be taken home for your rostered week</li>
+            <li>Complete a pre-start check in Site App Pro before departing for any callout — 2 am is not an exception</li>
+            <li>Use the trailer where the callout needs it</li>
+          </ul>
+          <div class="danger-box"><p>✗ The vehicle at home is for callout response only. The Vehicle Use Policy (POL-HSE-006) prohibition on personal use applies for the whole week — no errands, no favours, no exceptions without the Director's prior approval.</p></div>
+        `
+      },
+      {
+        tag: 'Module 4 · Recording and Notification',
+        html: `
+          <h2>RECORDING AND <span>NOTIFICATION</span></h2>
+          <table class="data-table">
+            <thead><tr><th style="width:35%">Requirement</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Record the job</strong></td><td>In Site App Pro, including start and finish times.</td></tr>
+              <tr><td><strong>Emergency provision note</strong></td><td>If relied on, record the reason and the hours.</td></tr>
+              <tr><td><strong>Notify the Operations Manager</strong></td><td>By the start of the next business day — immediately if significant or you need help.</td></tr>
+            </tbody>
+          </table>
+          <div class="callout">The record is what proves the arrangement is working — hours within limits, emergencies documented, responses on time. An unrecorded callout is invisible to everyone who needs to manage your hours.</div>
+        `
+      },
+      {
+        tag: 'Module 4 · The Post-Callout Rest Rule',
+        html: `
+          <h2>THE POST-CALLOUT <span>REST RULE</span></h2>
+          <p>After any callout, you must have a <strong>minimum of 10 hours continuous rest</strong> before starting your next shift. Your next day's start time moves accordingly — and you advise the Operations Manager of the adjusted start.</p>
+          <div class="info-card"><h4>Worked example</h4><p>The callout finishes at 2:30 am. Ten hours of continuous rest means your earliest start the next day is 12:30 pm — not 7:00 am, and not "10-ish because I feel okay."</p></div>
+          <div class="warning-box"><div class="w-label">⚠ Key Point</div><p>The rest rule is not optional and not negotiable against a busy day. The Operations Manager adjusts the roster around it — that is their job, not yours to absorb.</p></div>
+        `
+      }
+    ]
+  },
+  {
+    label: 'Module 5 of 5',
+    title: 'Scenarios',
+    slides: [
+      {
+        tag: 'Module 5 · Scenario A',
+        html: `
+          <h2>EMERGENCY <span>CALLOUT</span></h2>
+          <div class="incident-card">
+            <div class="ic-label">Scenario A — Burst Main at 11pm After a Full Working Day</div>
+            <p>An on-call person had worked a 12.5-hour day when the Hotline rang at 11 pm: a burst main was flooding a residential street and Tiaki Wai needed urgent water supply support. Attending would take the driver past the 13-hour cumulative work day limit.</p>
+            <p>The driver ran the self-check: genuinely alert, no impairment, and the callout clearly met the definition of an emergency. The emergency provision applied. The driver attended, recorded the reason and hours in Site App Pro, and took 10 hours rest before the next shift.</p>
+            <div class="ic-lesson">The emergency provision exists precisely for this situation — but it is a two-part test. The legal permission and the personal fitness check are separate questions, and both must pass. Had the driver been fatigued, the right answer was escalation, not attendance — regardless of what the law allowed.</div>
+          </div>
+        `
+      },
+      {
+        tag: 'Module 5 · Scenario B',
+        html: `
+          <h2>HOTLINE <span>EXCLUSIVITY</span></h2>
+          <div class="incident-card type-blue">
+            <div class="ic-label">Scenario B — A Caller Who Isn't Tiaki Wai</div>
+            <p>On a Saturday afternoon, the Hotline rang. The caller was not Tiaki Wai — a residential customer wanting an urgent tank fill, who said a friend had passed on the number.</p>
+            <p>The on-call person politely explained that this number couldn't take their request, redirected them to the office number for follow-up the next business day, and let the Operations Manager know the Hotline number had been given out.</p>
+            <div class="ic-lesson">The Hotline works because it means one thing: Tiaki Wai needs a response now. Telling the Operations Manager isn't dobbing anyone in — it lets BWT manage the leak before it grows.</div>
+          </div>
+        `
+      },
+      {
+        tag: 'Module 5 · Scenario C',
+        html: `
+          <h2>POST-CALLOUT <span>REST</span></h2>
+          <div class="incident-card type-amber">
+            <div class="ic-label">Scenario C — Callout Finishes at 2:30am, Rostered Start at 7:00am</div>
+            <p>An on-call person attended a callout that wrapped up at 2:30 am. Their rostered start for the next day was 7:00 am, on a day already scheduled with deliveries.</p>
+            <p>Applying the post-callout rest rule, the driver took 10 hours continuous rest and advised the Operations Manager, who adjusted the day's runs. The driver started at 12:30 pm.</p>
+            <div class="ic-lesson">The 10-hour rest rule turns a specific time into a specific answer, with no judgement call to make. Advising the Operations Manager early is what makes the adjustment painless — a 3 am text beats a 6:45 am surprise.</div>
+          </div>
+        `
+      },
+      {
+        tag: 'Module 5 · Knowledge Check',
+        isQuiz: true,
+        questions: [
+          {
+            q: "You've worked 12.5 hours today. The Hotline rings at 11 pm — a burst main is flooding a street and Tiaki Wai needs an urgent response. You feel genuinely alert and fit.",
+            context: "Attending will take you past the 13-hour cumulative work day limit. The situation clearly meets the definition of an emergency callout.",
+            opts: [
+              "Decline — you're near the 13-hour limit, so you legally cannot attend under any circumstances",
+              "Run the self-check. Being fit and this being a genuine emergency, attend under the emergency provision, record the reason and hours in Site App Pro, and apply the 10-hour rest rule before your next shift",
+              "Attend, but keep the extra hours out of the record so the logbook doesn't show an exceedance",
+              "Attend, and start at your normal time tomorrow — the emergency provision covers the whole event including the next day"
+            ],
+            correct: 1,
+            feedback: "The emergency provision allows work time limits to be exceeded for urgent restoration of water supply — provided you are genuinely fit, and provided the reason and hours are recorded. The rest rule then applies in full: 10 hours continuous rest before the next shift, with the Operations Manager advised of the adjusted start."
+          },
+          {
+            q: "Saturday, 3 pm. The Hotline rings — it's a residential customer wanting an urgent water delivery. They got the number from a mate.",
+            context: "You're on call, the truck is available, and the job would pay. The caller is friendly and genuinely stuck.",
+            opts: [
+              "Attend — you're on call anyway, and a paying job is a paying job",
+              "Redirect them politely to the office number for next-business-day follow-up, and let the Operations Manager know the Hotline number has been given out",
+              "Tell them to call the Hotline back on Monday morning when it's transferred to the office",
+              "Take their details and quietly pass them to the office on Monday, without mentioning where they called"
+            ],
+            correct: 1,
+            feedback: "The Hotline exists exclusively for Tiaki Wai's contractual after-hours response. Any other caller is redirected to the office number for the next business day — and the Operations Manager is told, because a leaked number is something BWT needs to manage before it spreads."
+          },
+          {
+            q: "Your callout finishes at 2:30 am. You're rostered to start at 7:00 am and the day is fully booked.",
+            context: "You feel like you could manage on four hours' sleep, and you don't want to leave the team short.",
+            opts: [
+              "Start at 7:00 am — push through today and catch up on sleep tonight",
+              "Compromise — take a shorter rest and start mid-morning so the day isn't too disrupted",
+              "Take a minimum of 10 hours continuous rest — earliest start 12:30 pm — and advise the Operations Manager of the adjusted start time",
+              "Take the full rest, but don't bother the Operations Manager — they'll figure it out when you arrive"
+            ],
+            correct: 2,
+            feedback: "Finish at 2:30 am plus 10 hours continuous rest means an earliest start of 12:30 pm — and the Operations Manager is advised so the day can be adjusted around it. The rest rule is a minimum, not a target, and it doesn't flex for a busy roster."
+          }
+        ]
+      }
+    ]
+  }
+];
+
+let currentModule = 0;
+let currentSlide = 0;
+let quizAnswers = {};
+let quizScore = 0;
+let totalQuestions = 0;
+
+function buildQuizSlide(slideData) {
+  const qs = slideData.questions;
+  totalQuestions = qs.length;
+  let html = `<div class="slide-tag">${slideData.tag}</div><h2>KNOWLEDGE <span>CHECK</span></h2><p>Work through each question. A ${qs.length}/${qs.length} score is required to complete this training.</p>`;
+  qs.forEach((q, qi) => {
+    html += `<div class="quiz-q" id="qq-${qi}">
+      <div class="q-text">${qi+1}. ${q.q}</div>
+      ${q.context ? `<div class="quiz-context">${q.context}</div>` : ''}
+      <div class="quiz-options">
+        ${q.opts.map((o, oi) => `<button class="quiz-opt" id="opt-${qi}-${oi}" onclick="answerQuestion(${qi}, ${oi})"><span class="opt-letter">${String.fromCharCode(65+oi)}</span>${o}</button>`).join('')}
+      </div>
+      <div class="quiz-feedback" id="fb-${qi}"></div>
+    </div>`;
+  });
+  html += `<div class="quiz-result" id="quizResult" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:0.75rem;padding:1.5rem;text-align:center;margin-top:0.5rem">
+    <div id="qrScore" style="font-family:'Bebas Neue',sans-serif;font-size:2.8rem;color:var(--water-bright);line-height:1;margin-bottom:0.5rem"></div>
+    <div id="qrLabel" style="font-size:1rem;font-weight:700;margin-bottom:0.6rem"></div>
+    <div id="qrMsg" style="font-size:0.88rem;color:var(--slate);line-height:1.5;margin-bottom:0.8rem"></div>
+    <div id="qrActions"></div>
+  </div>`;
+  return html;
+}
+
+function evaluateQuiz() {
+  const passed = quizScore === totalQuestions;
+  const panel = document.getElementById('quizResult');
+  panel.style.display = 'block';
+  document.getElementById('qrScore').textContent = `${quizScore}/${totalQuestions}`;
+  const label = document.getElementById('qrLabel');
+  const msg = document.getElementById('qrMsg');
+  const actions = document.getElementById('qrActions');
+  const nextBtn = document.getElementById('btn-next');
+  if (passed) {
+    label.textContent = 'Pass — full marks';
+    label.style.color = 'var(--success)';
+    msg.textContent = 'Well done. Click Complete Training to finish.';
+    actions.innerHTML = '';
+    nextBtn.style.display = '';
+  } else {
+    label.textContent = `Not yet — ${totalQuestions}/${totalQuestions} required`;
+    label.style.color = 'var(--danger)';
+    msg.textContent = 'Review the relevant modules and try again.';
+    actions.innerHTML = '<button class="btn-nav-primary" onclick="retryQuiz()">Try Again</button>';
+    nextBtn.style.display = 'none';
+  }
+}
+
+function retryQuiz() { quizAnswers = {}; quizScore = 0; renderSlide(); }
+
+function answerQuestion(qi, oi) {
+  if (quizAnswers[qi] !== undefined) return;
+  quizAnswers[qi] = oi;
+  const q = modules[currentModule].slides[currentSlide].questions[qi];
+  const isCorrect = oi === q.correct;
+  if (isCorrect) quizScore++;
+  q.opts.forEach((_, i) => {
+    const btn = document.getElementById(`opt-${qi}-${i}`);
+    btn.classList.add('answered');
+    if (i === q.correct) btn.classList.add('correct');
+    else if (i === oi && !isCorrect) btn.classList.add('wrong');
+  });
+  const fb = document.getElementById(`fb-${qi}`);
+  fb.textContent = (isCorrect ? '✅ Correct. ' : '❌ Not quite. ') + q.feedback;
+  fb.className = `quiz-feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+  const count = Object.keys(quizAnswers).length;
+  if (count === totalQuestions) evaluateQuiz();
+}
+
+function getTotalSlides() { return modules.reduce((sum, m) => sum + m.slides.length, 0); }
+function getGlobalSlideIndex() { let idx = 0; for (let m = 0; m < currentModule; m++) idx += modules[m].slides.length; return idx + currentSlide; }
+
+function renderSlide() {
+  const mod = modules[currentModule];
+  const slide = mod.slides[currentSlide];
+  document.getElementById('mod-label').textContent = mod.label;
+  document.getElementById('mod-title-bar').textContent = mod.title;
+  const total = getTotalSlides();
+  const current = getGlobalSlideIndex() + 1;
+  const pct = Math.round((current / total) * 100);
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = pct + '%';
+  const dotsEl = document.getElementById('module-dots');
+  dotsEl.innerHTML = modules.map((m, i) => {
+    let cls = 'm-dot';
+    if (i < currentModule) cls += ' done';
+    else if (i === currentModule) cls += ' active';
+    return `<div class="${cls}" title="${m.title}"></div>`;
+  }).join('');
+  const container = document.getElementById('slides-container');
+  let content;
+  if (slide.isQuiz) { content = buildQuizSlide(slide); } else { content = `<div class="slide-tag">${slide.tag}</div>${slide.html}`; }
+  container.innerHTML = `<div class="slide active fade-in">${content}</div>`;
+  document.getElementById('btn-prev').disabled = (currentModule === 0 && currentSlide === 0);
+  const isLast = currentModule === modules.length - 1 && currentSlide === modules[currentModule].slides.length - 1;
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.textContent = isLast ? 'Complete Training ✓' : 'Continue →';
+  nextBtn.style.display = slide.isQuiz ? 'none' : '';
+}
+
+function nextSlide() {
+  const isLastSlide = currentSlide === modules[currentModule].slides.length - 1;
+  if (isLastSlide) {
+    if (currentModule === modules.length - 1) { showComplete(); return; }
+    currentModule++; currentSlide = 0;
+  } else { currentSlide++; }
+  renderSlide(); window.scrollTo(0, 0);
+}
+
+function prevSlide() {
+  if (currentSlide > 0) { currentSlide--; }
+  else if (currentModule > 0) { currentModule--; currentSlide = modules[currentModule].slides.length - 1; }
+  renderSlide(); window.scrollTo(0, 0);
+}
+
+function startCourse() {
+  document.getElementById('screen-welcome').classList.remove('active');
+  document.getElementById('screen-module').classList.add('active');
+  renderSlide();
+}
+
+function showComplete() {
+  document.getElementById('screen-module').classList.remove('active');
+  document.getElementById('screen-complete').classList.add('active');
+  const passed = quizScore === totalQuestions;
+  document.getElementById('final-score').textContent = `${quizScore}/${totalQuestions}`;
+  document.getElementById('final-outcome').textContent = passed ? 'Competent' : 'Not yet competent — review required';
+  document.getElementById('signoffScore').textContent = `${quizScore} out of ${totalQuestions}`;
+  document.getElementById('signoffOutcome').textContent = passed ? 'Competent' : 'Not yet competent — review required';
+  const today = new Date();
+  document.getElementById('completionDate').value = today.toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' });
+  window.scrollTo(0, 0);
+}
+
+function restartCourse() {
+  currentModule = 0; currentSlide = 0; quizAnswers = {}; quizScore = 0; totalQuestions = 0;
+  document.getElementById('screen-complete').classList.remove('active');
+  document.getElementById('screen-welcome').classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+
+
+</body></html>
