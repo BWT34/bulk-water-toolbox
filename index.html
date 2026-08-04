@@ -23,7 +23,7 @@ body {
 
     background-attachment: fixed;
 
-    min-height: 100vh;
+    min-height: 100vh; /* ✅ fills screen */
 
     color: white;
 }
@@ -33,8 +33,18 @@ body {
 @media (max-width: 768px) {
 
     body {
-        background-position: 70% top;
-        background-attachment: fixed;
+
+        background:
+            linear-gradient(
+                rgba(0,50,50,0.45),
+                rgba(0,30,30,0.60)
+            ),
+            url('Trucks2.jpg');
+
+        background-size: 120%;
+        background-position: center 10%;
+        background-repeat: no-repeat;
+        min-height: 100vh; /* ✅ fills screen */
     }
 
     .header img {
@@ -313,9 +323,9 @@ body {
     Delivery Order
 </a> 
     
-<a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/TruckLeaseHireAgreement">
-    <div class="icon">🚚💲</div>
-    Hire Agreement Order Form
+<a class="card" href="Hire_Agreements.html">
+    <div class="icon">🏠📁</div>
+    Hire Agreement Forms
 </a> 
     
     <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/PPEIssueRegister">
@@ -337,7 +347,7 @@ body {
     <div class="icon">🧰🦺</div>
     ToolBox Meeting - Facilitator Form.
 </a>
-    
+        
 </div> <!-- end grid -->
     
 <!-- NOTICE POPUP -->
