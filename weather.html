@@ -1,120 +1,117 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Bulk Water Weather</title>
+(async function () {
 
-<style>
-body{
-    margin:0;
-    background:transparent;
-    font-family:Segoe UI,sans-serif;
-}
+    if (document.getElementById('bwt-weather')) return;
 
-#weather{
-    position:fixed;
-    bottom:15px;
-    right:10px;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-}
+    document.body.style.background = '#f3f4f6';
+    document.body.style.fontFamily = 'Segoe UI, sans-serif';
+    document.body.style.margin = '0';
+    document.body.style.padding = '20px';
 
-.card{
-    width:180px;
-    background:#08122f;
-    color:white;
-    border-radius:10px;
-    padding:8px 10px;
-    box-shadow:0 3px 8px rgba(0,0,0,.3);
-}
-</style>
-</head>
+    function weatherIcon(code) {
 
-<body>
+        switch (code) {
 
-<div id="weather"></div>
+            case 0: return '☀️';
+            case 1: return '🌤️';
+            case 2: return '⛅';
+            case 3: return '☁️';
 
-<script>
+            case 45:
+            case 48:
+                return '🌫️';
 
-function weatherIcon(code){
+            case 51:
+            case 53:
+            case 55:
+                return '🌦️';
 
-    switch(code){
-        case 0: return '☀️';
-        case 1: return '🌤️';
-        case 2: return '⛅';
-        case 3: return '☁️';
-        case 45:
-        case 48:
-            return '🌫️';
-        case 51:
-        case 53:
-        case 55:
-        case 61:
-        case 63:
-        case 65:
-        case 80:
-        case 81:
-        case 82:
-            return '🌧️';
-        case 95:
-        case 96:
-        case 99:
-            return '⛈️';
-        default:
-            return '☁️';
+            case 56:
+            case 57:
+                return '🌧️';
+
+            case 61:
+            case 63:
+            case 65:
+                return '🌧️';
+
+            case 66:
+            case 67:
+                return '🌧️';
+
+            case 71:
+            case 73:
+            case 75:
+            case 77:
+                return '❄️';
+
+            case 80:
+            case 81:
+            case 82:
+                return '🌦️';
+
+            case 85:
+            case 86:
+                return '🌨️';
+
+            case 95:
+            case 96:
+            case 99:
+                return '⛈️';
+
+            default:
+                return '☁️';
+        }
     }
-}
 
-const locations = [
-    { name:'Upper Hutt', lat:-41.125, lon:175.070 },
-    { name:'Wellington', lat:-41.2866, lon:174.7762 },
-    { name:'Porirua', lat:-41.133, lon:174.840 },
-    { name:'Hutt Valley', lat:-41.210, lon:174.910 },
-    { name:'Kāpiti', lat:-40.900, lon:175.000 },
-    { name:'Wairarapa', lat:-41.150, lon:175.450 }
-];
+    const locations = [
+        { name: 'Upper Hutt', lat: -41.125, lon: 175.070 },
+        { name: 'Wellington', lat: -41.2866, lon: 174.7762 },
+        { name: 'Porirua', lat: -41.133, lon: 174.840 },
+        { name: 'Hutt Valley', lat: -41.210, lon: 174.910 },
+        { name: 'Kāpiti', lat: -40.900, lon: 175.000 },
+        { name: 'Wairarapa', lat: -41.150, lon: 175.450 }
+    ];
 
-async function loadWeather(){
+    const panel = document.createElement('div');
+    panel.id = 'bwt-weather';
 
-    const panel = document.getElementById('weather');
-    panel.innerHTML='';
+    panel.style.width = '100%';
+    panel.style.maxWidth = '420px';
+    panel.style.margin = '0 auto';
+    panel.style.display = 'flex';
+    panel.style.flexDirection = 'column';
+    panel.style.gap = '12px';
 
-    for (const loc of locations){
+    document.body.appendChild(panel);
 
-        const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+    for (const loc of locations) {
 
-        const data = await fetch(url).then(r=>r.json());
+        try {
 
-        const card=document.createElement('div');
-        card.className='card';
+            const url =
+                `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
 
-        card.innerHTML=`
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <div style="font-size:12px;font-weight:600">${loc.name}</div>
-                    <div style="font-size:18px">${weatherIcon(data.current.weather_code)}</div>
-                    <div style="font-size:10px;color:#cbd5e1">
-                        ${Math.round(data.current.wind_speed_10m)} km/h •
-                        ↑${Math.round(data.daily.temperature_2m_max[0])}°
-                        ↓${Math.round(data.daily.temperature_2m_min[0])}°
-                    </div>
-                </div>
-                <div style="font-size:26px">
-                    ${Math.round(data.current.temperature_2m)}°
-                </div>
-            </div>
-        `;
+            const data = await fetch(url).then(r => r.json());
 
-        panel.appendChild(card);
-    }
-}
+            const currentTemp = Math.round(data.current.temperature_2m);
+            const wind = Math.round(data.current.wind_speed_10m);
+            const maxTemp = Math.round(data.daily.temperature_2m_max[0]);
+            const minTemp = Math.round(data.daily.temperature_2m_min[0]);
+            const icon = weatherIcon(data.current.weather_code);
 
-loadWeather();
-setInterval(loadWeather, 900000); // refresh every 15 mins
+            const card = document.createElement('div');
 
-</script>
+            card.style.background = '#08122f';
+            card.style.color = 'white';
+            card.style.borderRadius = '16px';
+            card.style.padding = '18px';
+            card.style.boxShadow = '0 4px 12px rgba(0,0,0,.25)';
 
-</body>
-</html>
+            card.innerHTML = `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                ">
+
+              
