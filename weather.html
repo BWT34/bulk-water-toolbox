@@ -1,19 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BWT Weather Centre</title>
+<meta charset="UTF-8">
+<title>Bulk Water Weather</title>
+
+<style>
+body{
+    margin:0;
+    background:transparent;
+    font-family:Segoe UI,sans-serif;
+}
+
+#weather{
+    position:fixed;
+    bottom:15px;
+    right:10px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.card{
+    width:180px;
+    background:#08122f;
+    color:white;
+    border-radius:10px;
+    padding:8px 10px;
+    box-shadow:0 3px 8px rgba(0,0,0,.3);
+}
+</style>
 </head>
 
-<body style="margin:0; overflow:hidden;">
+<body>
 
-    <iframe src="embed.windy.com/embed2.html?lat=-41.125&lon=175.070&detailLat=-41.125&detailLon=175.070&width=1200&height=1200&zoom=9&level=surface&overlay=rain&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=true&metricWind=default&metricTemp=default&radarRange=-1
-style="width:100vw;height:100vh;border:none;display:block;"
-        frameborder="0"
-loading="lazy">
+<div id="weather"></div>
 
-</iframe>
+<script>
+
+function weatherIcon(code){
+
+    switch(code){
+        case 0: return '☀️';
+        case 1: return '🌤️';
+        case 2: return '⛅';
+        case 3: return '☁️';
+        case 45:
+        case 48:
+            return '🌫️';
+        case 51:
+        case 53:
+        case 55:
+        case 61:
+        case 63:
+        case 65:
+        case 80:
+        case 81:
+        case 82:
+            return '🌧️';
+        case 95:
+        case 96:
+        case 99:
+            return '⛈️';
+        default:
+            return '☁️';
+    }
+}
+
+const locations = [
+    { name:'Upper Hutt', lat:-41.125, lon:175.070 },
+    { name:'Wellington', lat:-41.2866, lon:174.7762 },
+    { name:'Porirua', lat:-41.133, lon:174.840 },
+    { name:'Hutt Valley', lat:-41.210, lon:174.910 },
+    { name:'Kāpiti', lat:-40.900, lon:175.000 },
+    { name:'Wairarapa', lat:-41.150, lon:175.450 }
+];
+
+async function loadWeather(){
+
+    const panel = document.getElementById('weather');
+    panel.innerHTML='';
+
+    for (const loc of locations){
+
+        const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+
+        const data = await fetch(url).then(r=>r.json());
+
+        const card=document.createElement('div');
+        card.className='card';
+
+        card.innerHTML=`
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:12px;font-weight:600">${loc.name}</div>
+                    <div style="font-size:18px">${weatherIcon(data.current.weather_code)}</div>
+                    <div style="font-size:10px;color:#cbd5e1">
+                        ${Math.round(data.current.wind_speed_10m)} km/h •
+                        ↑${Math.round(data.daily.temperature_2m_max[0])}°
+                        ↓${Math.round(data.daily.temperature_2m_min[0])}°
+                    </div>
+                </div>
+                <div style="font-size:26px">
+                    ${Math.round(data.current.temperature_2m)}°
+                </div>
+            </div>
+        `;
+
+        panel.appendChild(card);
+    }
+}
+
+loadWeather();
+setInterval(loadWeather, 900000); // refresh every 15 mins
+
+</script>
 
 </body>
 </html>
