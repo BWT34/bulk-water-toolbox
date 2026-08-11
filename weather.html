@@ -1,103 +1,132 @@
-(async function () {
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    if (document.getElementById('bwt-weather')) return;
+<title>Bulk Water Weather</title>
 
-    document.body.style.background = '#f3f4f6';
-    document.body.style.fontFamily = 'Segoe UI, sans-serif';
-    document.body.style.margin = '0';
-    document.body.style.padding = '20px';
+<style>
 
-    function weatherIcon(code) {
+body{
+    margin:0;
+    padding:20px;
+    background:#f3f4f6;
+    font-family:'Segoe UI',sans-serif;
+}
 
-        switch (code) {
+#bwt-weather{
+    width:100%;
+    max-width:420px;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
 
-            case 0: return '☀️';
-            case 1: return '🌤️';
-            case 2: return '⛅';
-            case 3: return '☁️';
+</style>
+</head>
+<body>
 
-            case 45:
-            case 48:
-                return '🌫️';
+<div id="bwt-weather"></div>
 
-            case 51:
-            case 53:
-            case 55:
-                return '🌦️';
+<script>
 
-            case 56:
-            case 57:
-                return '🌧️';
+function weatherIcon(code){
 
-            case 61:
-            case 63:
-            case 65:
-                return '🌧️';
+    switch(code){
 
-            case 66:
-            case 67:
-                return '🌧️';
+        case 0: return '☀️';
+        case 1: return '🌤️';
+        case 2: return '⛅';
+        case 3: return '☁️';
 
-            case 71:
-            case 73:
-            case 75:
-            case 77:
-                return '❄️';
+        case 45:
+        case 48:
+            return '🌫️';
 
-            case 80:
-            case 81:
-            case 82:
-                return '🌦️';
+        case 51:
+        case 53:
+        case 55:
+            return '🌦️';
 
-            case 85:
-            case 86:
-                return '🌨️';
+        case 56:
+        case 57:
+            return '🌧️';
 
-            case 95:
-            case 96:
-            case 99:
-                return '⛈️';
+        case 61:
+        case 63:
+        case 65:
+            return '🌧️';
 
-            default:
-                return '☁️';
-        }
+        case 66:
+        case 67:
+            return '🌧️';
+
+        case 71:
+        case 73:
+        case 75:
+        case 77:
+            return '❄️';
+
+        case 80:
+        case 81:
+        case 82:
+            return '🌦️';
+
+        case 85:
+        case 86:
+            return '🌨️';
+
+        case 95:
+        case 96:
+        case 99:
+            return '⛈️';
+
+        default:
+            return '☁️';
     }
 
+}
+
+async function loadWeather(){
+
+    const panel = document.getElementById('bwt-weather');
+
+    panel.innerHTML = '';
+
     const locations = [
-        { name: 'Upper Hutt', lat: -41.125, lon: 175.070 },
-        { name: 'Wellington', lat: -41.2866, lon: 174.7762 },
-        { name: 'Porirua', lat: -41.133, lon: 174.840 },
-        { name: 'Hutt Valley', lat: -41.210, lon: 174.910 },
-        { name: 'Kāpiti', lat: -40.900, lon: 175.000 },
-        { name: 'Wairarapa', lat: -41.150, lon: 175.450 }
+        { name:'Upper Hutt', lat:-41.125, lon:175.070 },
+        { name:'Wellington', lat:-41.2866, lon:174.7762 },
+        { name:'Porirua', lat:-41.133, lon:174.840 },
+        { name:'Hutt Valley', lat:-41.210, lon:174.910 },
+        { name:'Kāpiti', lat:-40.900, lon:175.000 },
+        { name:'Wairarapa', lat:-41.150, lon:175.450 }
     ];
 
-    const panel = document.createElement('div');
-    panel.id = 'bwt-weather';
+    for(const loc of locations){
 
-    panel.style.width = '100%';
-    panel.style.maxWidth = '420px';
-    panel.style.margin = '0 auto';
-    panel.style.display = 'flex';
-    panel.style.flexDirection = 'column';
-    panel.style.gap = '12px';
-
-    document.body.appendChild(panel);
-
-    for (const loc of locations) {
-
-        try {
+        try{
 
             const url =
-                `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+            `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
 
             const data = await fetch(url).then(r => r.json());
 
-            const currentTemp = Math.round(data.current.temperature_2m);
-            const wind = Math.round(data.current.wind_speed_10m);
-            const maxTemp = Math.round(data.daily.temperature_2m_max[0]);
-            const minTemp = Math.round(data.daily.temperature_2m_min[0]);
-            const icon = weatherIcon(data.current.weather_code);
+            const currentTemp =
+                Math.round(data.current.temperature_2m);
+
+            const wind =
+                Math.round(data.current.wind_speed_10m);
+
+            const maxTemp =
+                Math.round(data.daily.temperature_2m_max[0]);
+
+            const minTemp =
+                Math.round(data.daily.temperature_2m_min[0]);
+
+            const icon =
+                weatherIcon(data.current.weather_code);
 
             const card = document.createElement('div');
 
@@ -105,7 +134,8 @@
             card.style.color = 'white';
             card.style.borderRadius = '16px';
             card.style.padding = '18px';
-            card.style.boxShadow = '0 4px 12px rgba(0,0,0,.25)';
+            card.style.boxShadow =
+                '0 4px 12px rgba(0,0,0,.25)';
 
             card.innerHTML = `
                 <div style="
@@ -114,4 +144,73 @@
                     align-items:center;
                 ">
 
-              
+                    <div>
+
+                        <div style="
+                            font-size:20px;
+                            font-weight:600;
+                            margin-bottom:8px;
+                        ">
+                            ${loc.name}
+                        </div>
+
+                        <div style="
+                            font-size:32px;
+                            margin-bottom:8px;
+                        ">
+                            ${icon}
+                        </div>
+
+                        <div style="
+                            font-size:14px;
+                            color:#cbd5e1;
+                        ">
+                            💨 ${wind} km/h
+                        </div>
+
+                        <div style="
+                            font-size:14px;
+                            color:#94a3b8;
+                        ">
+                            ↑${maxTemp}°
+                            ↓${minTemp}°
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        font-size:60px;
+                        font-weight:300;
+                        line-height:1;
+                    ">
+                        ${currentTemp}°
+                    </div>
+
+                </div>
+            `;
+
+            panel.appendChild(card);
+
+        }
+        catch(err){
+
+            console.error(
+                'Weather error:',
+                loc.name,
+                err
+            );
+
+        }
+
+    }
+
+}
+
+loadWeather();
+
+setInterval(loadWeather, 900000);
+
+</script>
+
+</body>
+</html>
