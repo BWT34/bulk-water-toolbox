@@ -1,36 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wellington Traffic Alerts</title>
+
+<style>
+body{
+    margin:0;
+    padding:20px;
+    background:#f3f4f6;
+    font-family:'Segoe UI',sans-serif;
+}
+
+h1{
+    text-align:center;
+    color:#08122f;
+    margin-bottom:20px;
+}
+
+.card{
+    background:#08122f;
+    color:white;
+    padding:16px;
+    margin-bottom:12px;
+    border-radius:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+
+.card h3{
+    margin-top:0;
+    margin-bottom:10px;
+}
+
+.type{
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+.region{
+    color:#94a3b8;
+    margin-bottom:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Wellington Traffic Alerts</h1>
+
+<div id="traffic"></div>
+
+<script>
+
 fetch('https://trafficnz.info/service/traffic/rest/4/events/all/-1?_type=json')
 .then(response => response.json())
 .then(data => {
 
     const events = data.response.roadevent.filter(event => {
 
-    if (event.status !== 'Active')
-        return false;
+        if (event.status !== 'Active')
+            return false;
 
-    if (event.eventIsland !== 'North Island')
-        return false;
-        console.log(event.region?.name);
+        if (event.eventIsland !== 'North Island')
+            return false;
 
-   const region =
-    (event.region?.name || '').toUpperCase();
+        const region =
+            (event.region?.name || '').toUpperCase();
 
-return region === 'WELLINGTON';
+        return region === 'WELLINGTON';
 
-});
+    });
 
-   
-
-    document.body.innerHTML = '';
+    const container = document.getElementById('traffic');
 
     if (events.length === 0) {
 
-        document.body.innerHTML = `
-            <div style="
-                padding:20px;
-                font-family:Segoe UI;
-                font-size:24px;
-            ">
-                No active North Island traffic events.
+        container.innerHTML = `
+            <div class="card">
+                No active Wellington traffic events.
             </div>
         `;
 
@@ -40,24 +88,35 @@ return region === 'WELLINGTON';
     events.forEach(event => {
 
         const card = document.createElement('div');
-
-        card.style.background = '#08122f';
-        card.style.color = 'white';
-        card.style.padding = '16px';
-        card.style.margin = '12px';
-        card.style.borderRadius = '12px';
-        card.style.fontFamily = 'Segoe UI';
+        card.className = 'card';
 
         card.innerHTML = `
             <h3>${event.locationArea}</h3>
-            <p><strong>${event.eventType}</strong></p>
-            <p>${event.impact || ''}</p>
-            <p>${event.region?.name || ''}</p>
-            <p>${(event.eventComments || '').substring(0,150)}...</p>
+            <div class="type">${event.eventType}</div>
+            <div>${event.impact || ''}</div>
+            <div class="region">${event.region?.name || ''}</div>
+            <div>${(event.eventComments || '').substring(0,80)}...</div>
         `;
 
-        document.body.appendChild(card);
+        container.appendChild(card);
 
     });
 
+})
+.catch(error => {
+
+    document.getElementById('traffic').innerHTML = `
+        <div class="card">
+            Error loading traffic data.
+        </div>
+    `;
+
+    console.error(error);
+
 });
+
+</script>
+
+</body>
+</html>
+`
