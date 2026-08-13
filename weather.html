@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
 <title>Bulk Water Weather</title>
 
 <style>
+
 body{
     margin:0;
     padding:20px;
@@ -22,6 +23,7 @@ body{
     flex-direction:column;
     gap:12px;
 }
+
 </style>
 </head>
 <body>
@@ -84,62 +86,131 @@ function weatherIcon(code){
         default:
             return '☁️';
     }
+
 }
 
-function getUserLocation() {
+async function loadWeather(){
 
-    return new Promise((resolve, reject) => {
+    const panel = document.getElementById('bwt-weather');
 
-        if (!navigator.geolocation) {
-            reject('Geolocation not supported');
-            return;
+    panel.innerHTML = '';
+
+    const locations = [
+        { name:'Upper Hutt', lat:-41.125, lon:175.070 },
+        { name:'Wellington', lat:-41.2866, lon:174.7762 },
+        { name:'Porirua', lat:-41.133, lon:174.840 },
+        { name:'Hutt Valley', lat:-41.210, lon:174.910 },
+        { name:'Kāpiti', lat:-40.900, lon:175.000 },
+        { name:'Wairarapa', lat:-41.150, lon:175.450 }
+    ];
+
+    for(const loc of locations){
+
+        try{
+
+            const url =
+            `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+
+            const data = await fetch(url).then(r => r.json());
+
+            const currentTemp =
+                Math.round(data.current.temperature_2m);
+
+            const wind =
+                Math.round(data.current.wind_speed_10m);
+
+            const maxTemp =
+                Math.round(data.daily.temperature_2m_max[0]);
+
+            const minTemp =
+                Math.round(data.daily.temperature_2m_min[0]);
+
+            const icon =
+                weatherIcon(data.current.weather_code);
+
+            const card = document.createElement('div');
+
+            card.style.background = '#08122f';
+            card.style.color = 'white';
+            card.style.borderRadius = '16px';
+            card.style.padding = '18px';
+            card.style.boxShadow =
+                '0 4px 12px rgba(0,0,0,.25)';
+
+            card.innerHTML = `
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                ">
+
+                    <div>
+
+                        <div style="
+                            font-size:20px;
+                            font-weight:600;
+                            margin-bottom:8px;
+                        ">
+                            ${loc.name}
+                        </div>
+
+                        <div style="
+                            font-size:32px;
+                            margin-bottom:8px;
+                        ">
+                            ${icon}
+                        </div>
+
+                        <div style="
+                            font-size:14px;
+                            color:#cbd5e1;
+                        ">
+                            💨 ${wind} km/h
+                        </div>
+
+                        <div style="
+                            font-size:14px;
+                            color:#94a3b8;
+                        ">
+                            ↑${maxTemp}°
+                            ↓${minTemp}°
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        font-size:60px;
+                        font-weight:300;
+                        line-height:1;
+                    ">
+                        ${currentTemp}°
+                    </div>
+
+                </div>
+            `;
+
+            panel.appendChild(card);
+
+        }
+        catch(err){
+
+            console.error(
+                'Weather error:',
+                loc.name,
+                err
+            );
+
         }
 
-        navigator.geolocation.getCurrentPosition(
-            position => {
-                resolve({
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                });
-            },
-            error => reject(error),
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 300000
-            }
-        );
-
-    });
+    }
 
 }
 
-async function createWeatherCard(panel, loc){
+loadWeather();
 
-    try{
+setInterval(loadWeather, 900000);
 
-        const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+</script>
 
-        const data = await fetch(url);
-        const weather = await data.json();
-
-        const currentTemp =
-            Math.round(weather.current.temperature_2m);
-
-        const wind =
-            Math.round(weather.current.wind_speed_10m);
-
-        const maxTemp =
-            Math.round(weather.daily.temperature_2m_max[0]);
-
-        const minTemp =
-            Math.round(weather.daily.temperature_2m_min[0]);
-
-        const icon =
-            weatherIcon(weather.current.weather_code);
-
-        const card = document.createElement('div');
-
-        card.style.background = '#08122f';
-        card.style.
+</body>
+</html>
