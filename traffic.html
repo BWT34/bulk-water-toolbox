@@ -1,0 +1,63 @@
+fetch('https://trafficnz.info/service/traffic/rest/4/events/all/-1?_type=json')
+.then(response => response.json())
+.then(data => {
+
+    const events = data.response.roadevent.filter(event => {
+
+    if (event.status !== 'Active')
+        return false;
+
+    if (event.eventIsland !== 'North Island')
+        return false;
+        console.log(event.region?.name);
+
+   const region =
+    (event.region?.name || '').toUpperCase();
+
+return region === 'WELLINGTON';
+
+});
+
+   
+
+    document.body.innerHTML = '';
+
+    if (events.length === 0) {
+
+        document.body.innerHTML = `
+            <div style="
+                padding:20px;
+                font-family:Segoe UI;
+                font-size:24px;
+            ">
+                No active North Island traffic events.
+            </div>
+        `;
+
+        return;
+    }
+
+    events.forEach(event => {
+
+        const card = document.createElement('div');
+
+        card.style.background = '#08122f';
+        card.style.color = 'white';
+        card.style.padding = '16px';
+        card.style.margin = '12px';
+        card.style.borderRadius = '12px';
+        card.style.fontFamily = 'Segoe UI';
+
+        card.innerHTML = `
+            <h3>${event.locationArea}</h3>
+            <p><strong>${event.eventType}</strong></p>
+            <p>${event.impact || ''}</p>
+            <p>${event.region?.name || ''}</p>
+            <p>${(event.eventComments || '').substring(0,150)}...</p>
+        `;
+
+        document.body.appendChild(card);
+
+    });
+
+});
