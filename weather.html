@@ -231,7 +231,41 @@ function getUserLocation() {
     });
 }
 loadWeather();
+async function loadWeather(){
 
+    const panel = document.getElementById('bwt-weather');
+
+    panel.innerHTML = '';
+
+    let locations = [];
+
+    try {
+
+        const userLocation = await getUserLocation();
+
+        locations.push({
+            name: '📍 Your Location',
+            lat: userLocation.lat,
+            lon: userLocation.lon
+        });
+
+    } catch(err){
+
+        console.log('Location unavailable');
+
+    }
+
+    locations.push(
+        { name:'Upper Hutt', lat:-41.125, lon:175.070 },
+        { name:'Wellington', lat:-41.2866, lon:174.7762 },
+        { name:'Porirua', lat:-41.133, lon:174.840 },
+        { name:'Hutt Valley', lat:-41.210, lon:174.910 },
+        { name:'Kāpiti', lat:-40.900, lon:175.000 },
+        { name:'Wairarapa', lat:-41.150, lon:175.450 }
+    );
+
+    // existing loop continues...
+}
 setInterval(loadWeather, 900000);
 
 </script>
