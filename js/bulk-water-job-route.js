@@ -70,6 +70,7 @@
         card.style.borderRadius = '10px';
         card.style.boxShadow = '0 4px 10px rgba(0,0,0,.3)';
         card.style.borderLeft = `4px solid ${statusColor}`;
+        card.style.marginBottom = '8px';
 
         card.innerHTML = `
             <div style="font-size:10px; color:#94a3b8;">
@@ -91,6 +92,28 @@
             </div>
         `;
 
+        return card;
+
+    }
+
+    function buildMapCard(address) {
+
+        const card = document.createElement('div');
+        card.style.width = '240px';
+        card.style.borderRadius = '10px';
+        card.style.overflow = 'hidden';
+        card.style.boxShadow = '0 4px 10px rgba(0,0,0,.3)';
+
+        const iframe = document.createElement('iframe');
+        iframe.width = '240';
+        iframe.height = '180';
+        iframe.style.border = '0';
+        iframe.style.display = 'block';
+        iframe.loading = 'lazy';
+        iframe.referrerPolicy = 'no-referrer-when-downgrade';
+        iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
+
+        card.appendChild(iframe);
         return card;
 
     }
@@ -172,6 +195,7 @@
                 : normalSecs;
 
             panel.appendChild(buildRouteCard(address.label, normalSecs, trafficSecs));
+            panel.appendChild(buildMapCard(address));
 
         });
 
