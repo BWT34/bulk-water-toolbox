@@ -2,7 +2,7 @@
     if (document.getElementById('bwt-job-route')) return;
 
     // ---- Config ----
-    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
     const ORIGIN = 'Upper Hutt, New Zealand';
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
 
