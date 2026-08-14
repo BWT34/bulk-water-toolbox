@@ -89,11 +89,210 @@ function weatherIcon(code){
 
 }
 
+function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal){
+
+    const card = document.createElement('div');
+
+    card.style.background = '#08122f';
+    card.style.color = 'white';
+    card.style.borderRadius = '16px';
+    card.style.padding = '18px';
+    card.style.boxShadow = '0 4px 12px rgba(0,0,0,.25)';
+
+    if(isLocal){
+        card.style.border = '2px solid #38bdf8';
+    }
+
+    card.innerHTML = `
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        ">
+
+            <div>
+
+                <div style="
+                    font-size:20px;
+                    font-weight:600;
+                    margin-bottom:8px;
+                ">
+                    ${isLocal ? '📍 ' : ''}${name}
+                </div>
+
+                <div style="
+                    font-size:32px;
+                    margin-bottom:8px;
+                ">
+                    ${icon}
+                </div>
+
+                <div style="
+                    font-size:14px;
+                    color:#cbd5e1;
+                ">
+                    💨 ${wind} km/h
+                </div>
+
+                <div style="
+                    font-size:14px;
+                    color:#94a3b8;
+                ">
+                    ↑${maxTemp}°
+                    ↓${minTemp}°
+                </div>
+
+            </div>
+
+            <div style="
+                font-size:60px;
+                font-weight:300;
+                line-height:1;
+            ">
+                ${currentTemp}°
+            </div>
+
+        </div>
+    `;
+
+    return card;
+
+}
+
+function buildMessageCard(text){
+
+    const card = document.createElement('div');
+
+    card.style.background = '#1e293b';
+    card.style.color = '#94a3b8';
+    card.style.borderRadius = '16px';
+    card.style.padding = '18px';
+    card.style.fontSize = '14px';
+    card.style.textAlign = 'center';
+
+    card.textContent = text;
+
+    return card;
+
+}
+
+async function fetchWeatherFor(lat, lon){
+
+    const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+
+    const data = await fetch(url).then(r => r.json());
+
+    return {
+        currentTemp: Math.round(data.current.temperature_2m),
+        wind: Math.round(data.current.wind_speed_10m),
+        maxTemp: Math.round(data.daily.temperature_2m_max[0]),
+        minTemp: Math.round(data.daily.temperature_2m_min[0]),
+        icon: weatherIcon(data.current.weather_code)
+    };
+
+}
+
+async function reverseGeocode(lat, lon){
+
+    try{
+
+        const url =
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+
+        const data = await fetch(url).then(r => r.json());
+
+        return data.locality
+            || data.city
+            || data.principalSubdivision
+            || 'My Location';
+
+    }
+    catch(err){
+
+        return 'My Location';
+
+    }
+
+}
+
+function getBrowserLocation(){
+
+    return new Promise((resolve, reject) => {
+
+        if(!navigator.geolocation){
+            reject(new Error('Geolocation not supported'));
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude
+            }),
+            err => reject(err),
+            {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 600000
+            }
+        );
+
+    });
+
+}
+
+async function loadLocalCard(panel){
+
+    // Placeholder while we wait on the permission prompt / fetch
+    const placeholder = buildMessageCard('Checking your location…');
+    panel.appendChild(placeholder);
+
+    try{
+
+        const { lat, lon } = await getBrowserLocation();
+
+        const [weather, name] = await Promise.all([
+            fetchWeatherFor(lat, lon),
+            reverseGeocode(lat, lon)
+        ]);
+
+        const card = buildCard(
+            name,
+            weather.currentTemp,
+            weather.wind,
+            weather.maxTemp,
+            weather.minTemp,
+            weather.icon,
+            true
+        );
+
+        panel.replaceChild(card, placeholder);
+
+    }
+    catch(err){
+
+        console.error('Local weather error:', err);
+
+        // err.code === 1 means the user denied the permission prompt
+        const message = (err && err.code === 1)
+            ? 'Location permission denied — showing default areas only'
+            : 'Location unavailable — showing default areas only';
+
+        panel.replaceChild(buildMessageCard(message), placeholder);
+
+    }
+
+}
+
 async function loadWeather(){
 
     const panel = document.getElementById('bwt-weather');
 
     panel.innerHTML = '';
+
+    // Local card goes first, and doesn't block the rest of the list
+    await loadLocalCard(panel);
 
     const locations = [
         { name:'Upper Hutt', lat:-41.125, lon:175.070 },
@@ -108,86 +307,17 @@ async function loadWeather(){
 
         try{
 
-            const url =
-            `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
+            const weather = await fetchWeatherFor(loc.lat, loc.lon);
 
-            const data = await fetch(url).then(r => r.json());
-
-            const currentTemp =
-                Math.round(data.current.temperature_2m);
-
-            const wind =
-                Math.round(data.current.wind_speed_10m);
-
-            const maxTemp =
-                Math.round(data.daily.temperature_2m_max[0]);
-
-            const minTemp =
-                Math.round(data.daily.temperature_2m_min[0]);
-
-            const icon =
-                weatherIcon(data.current.weather_code);
-
-            const card = document.createElement('div');
-
-            card.style.background = '#08122f';
-            card.style.color = 'white';
-            card.style.borderRadius = '16px';
-            card.style.padding = '18px';
-            card.style.boxShadow =
-                '0 4px 12px rgba(0,0,0,.25)';
-
-            card.innerHTML = `
-                <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                ">
-
-                    <div>
-
-                        <div style="
-                            font-size:20px;
-                            font-weight:600;
-                            margin-bottom:8px;
-                        ">
-                            ${loc.name}
-                        </div>
-
-                        <div style="
-                            font-size:32px;
-                            margin-bottom:8px;
-                        ">
-                            ${icon}
-                        </div>
-
-                        <div style="
-                            font-size:14px;
-                            color:#cbd5e1;
-                        ">
-                            💨 ${wind} km/h
-                        </div>
-
-                        <div style="
-                            font-size:14px;
-                            color:#94a3b8;
-                        ">
-                            ↑${maxTemp}°
-                            ↓${minTemp}°
-                        </div>
-
-                    </div>
-
-                    <div style="
-                        font-size:60px;
-                        font-weight:300;
-                        line-height:1;
-                    ">
-                        ${currentTemp}°
-                    </div>
-
-                </div>
-            `;
+            const card = buildCard(
+                loc.name,
+                weather.currentTemp,
+                weather.wind,
+                weather.maxTemp,
+                weather.minTemp,
+                weather.icon,
+                false
+            );
 
             panel.appendChild(card);
 
