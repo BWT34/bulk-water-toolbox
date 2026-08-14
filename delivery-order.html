@@ -9,20 +9,60 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background: #f3f4f6;
+
+    background:
+        linear-gradient(
+            rgba(0,50,50,0.45),
+            rgba(0,30,30,0.60)
+        ),
+        url('trucks.jpg');
+
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    min-height: 100vh;
+    box-sizing: border-box;
     padding: 20px;
+}
+
+/* MOBILE — same swap the toolbox page uses */
+@media (max-width: 768px) {
+    body {
+        background:
+            linear-gradient(
+                rgba(0,50,50,0.45),
+                rgba(0,30,30,0.60)
+            ),
+            url('Trucks2.jpg');
+
+        background-size: 120%;
+        background-position: center 10%;
+        background-repeat: no-repeat;
+    }
 }
 
 .back-link {
     display: inline-block;
     margin-bottom: 16px;
-    color: #08122f;
+    padding: 8px 16px;
+
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+
+    color: white;
     font-weight: 600;
     text-decoration: none;
+
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
 }
 
 .back-link:hover {
-    text-decoration: underline;
+    background: rgba(255,255,255,0.25);
 }
 </style>
 </head>
@@ -37,8 +77,8 @@ body {
 <!-- Traffic widget — reads the Delivery Address field once it appears
      above and shows a live traffic-aware ETA from the depot -->
 <script src="js/bulk-water-job-route.js"></script>
-    
-    <!-- Weather panel — desktop/tablet only, sits on the left to balance
+
+<!-- Weather panel — desktop/tablet only, sits on the left to balance
      the traffic widget on the right -->
 <script src="js/bulk-water-weather-panel.js"></script>
 
