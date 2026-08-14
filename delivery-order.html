@@ -69,6 +69,18 @@ body {
     max-width: 900px;
     margin: 0 auto;
 }
+
+/* Once side panels are visible (matches the 900px breakpoint used by
+   both the weather panel and traffic widget), size the form to the
+   space actually left between them, with a sensible floor so it
+   never gets uncomfortably narrow */
+@media (min-width: 900px) {
+    .form-wrap {
+        width: calc(100vw - 670px);
+        max-width: 900px;
+        min-width: 480px;
+    }
+}
 </style>
 </head>
 
