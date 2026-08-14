@@ -2,9 +2,63 @@
     if (document.getElementById('bwt-job-route')) return;
 
     // ---- Config ----
-    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
+    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
     const ORIGIN = 'Upper Hutt, New Zealand';
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
+
+    // ---- Responsive styling ----
+    // Compact by default (phones), scales up once there's more screen
+    // width to use (desktop/tablet).
+    const styleTag = document.createElement('style');
+    styleTag.textContent = `
+        #bwt-job-route .bwt-card {
+            width: 240px;
+            box-sizing: border-box;
+            border-radius: 10px;
+            font-family: Segoe UI, Arial, sans-serif;
+        }
+        #bwt-job-route .bwt-msg {
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 10px 12px;
+            font-size: 11px;
+            text-align: center;
+        }
+        #bwt-job-route .bwt-route {
+            background: #08122f;
+            color: white;
+            padding: 10px 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,.3);
+            margin-bottom: 8px;
+        }
+        #bwt-job-route .bwt-route-sub { font-size: 10px; color: #94a3b8; }
+        #bwt-job-route .bwt-route-toprow { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+        #bwt-job-route .bwt-route-label { font-size: 12px; font-weight: 600; max-width: 170px; }
+        #bwt-job-route .bwt-route-status { font-size: 10px; font-weight: 600; }
+        #bwt-job-route .bwt-route-duration { font-size: 24px; font-weight: 300; margin-top: 6px; }
+        #bwt-job-route .bwt-route-delay { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+        #bwt-job-route .bwt-map {
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,.3);
+        }
+        #bwt-job-route .bwt-map iframe {
+            width: 100%;
+            height: 180px;
+            border: 0;
+            display: block;
+        }
+
+        /* Desktop / tablet — more room, so scale everything up */
+        @media (min-width: 900px) {
+            #bwt-job-route .bwt-card { width: 360px; }
+            #bwt-job-route .bwt-route-label { font-size: 15px; max-width: 260px; }
+            #bwt-job-route .bwt-route-status { font-size: 12px; }
+            #bwt-job-route .bwt-route-duration { font-size: 38px; }
+            #bwt-job-route .bwt-route-delay { font-size: 12px; }
+            #bwt-job-route .bwt-map iframe { height: 280px; }
+        }
+    `;
+    document.head.appendChild(styleTag);
 
     const panel = document.createElement('div');
     panel.id = 'bwt-job-route';
@@ -13,30 +67,17 @@
     panel.style.right = '10px';
     panel.style.transform = 'translateY(-50%)';
     panel.style.zIndex = '99999';
-    panel.style.fontFamily = 'Segoe UI, Arial, sans-serif';
     document.body.appendChild(panel);
     panel.appendChild((function () {
         const c = document.createElement('div');
-        c.style.background = '#1e293b';
-        c.style.color = '#94a3b8';
-        c.style.width = '240px';
-        c.style.padding = '10px 12px';
-        c.style.borderRadius = '10px';
-        c.style.fontSize = '11px';
-        c.style.textAlign = 'center';
+        c.className = 'bwt-card bwt-msg';
         c.textContent = 'Looking for delivery address field…';
         return c;
     })());
 
     function buildMessageCard(text) {
         const card = document.createElement('div');
-        card.style.background = '#1e293b';
-        card.style.color = '#94a3b8';
-        card.style.width = '240px';
-        card.style.padding = '10px 12px';
-        card.style.borderRadius = '10px';
-        card.style.fontSize = '11px';
-        card.style.textAlign = 'center';
+        card.className = 'bwt-card bwt-msg';
         card.textContent = text;
         return card;
     }
@@ -63,34 +104,17 @@
         const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 
         const card = document.createElement('div');
-        card.style.background = '#08122f';
-        card.style.color = 'white';
-        card.style.width = '240px';
-        card.style.boxSizing = 'border-box';
-        card.style.padding = '10px 12px';
-        card.style.borderRadius = '10px';
-        card.style.boxShadow = '0 4px 10px rgba(0,0,0,.3)';
+        card.className = 'bwt-card bwt-route';
         card.style.borderLeft = `4px solid ${statusColor}`;
-        card.style.marginBottom = '8px';
 
         card.innerHTML = `
-            <div style="font-size:10px; color:#94a3b8;">
-                🚚 Upper Hutt → 
+            <div class="bwt-route-sub">🚚 Upper Hutt → </div>
+            <div class="bwt-route-toprow">
+                <div class="bwt-route-label">${addressLabel}</div>
+                <div class="bwt-route-status" style="color:${statusColor};">${statusLabel}</div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                <div style="font-size:12px; font-weight:600; max-width:170px;">
-                    ${addressLabel}
-                </div>
-                <div style="font-size:10px; color:${statusColor}; font-weight:600;">
-                    ${statusLabel}
-                </div>
-            </div>
-            <div style="font-size:24px; font-weight:300; margin-top:6px;">
-                ${durationText}
-            </div>
-            <div style="font-size:10px; color:#94a3b8; margin-top:4px;">
-                ${delayMins > 0 ? `+${delayMins} min vs normal` : 'On schedule'}
-            </div>
+            <div class="bwt-route-duration">${durationText}</div>
+            <div class="bwt-route-delay">${delayMins > 0 ? `+${delayMins} min vs normal` : 'On schedule'}</div>
         `;
 
         return card;
@@ -100,16 +124,9 @@
     function buildMapCard(address) {
 
         const card = document.createElement('div');
-        card.style.width = '240px';
-        card.style.borderRadius = '10px';
-        card.style.overflow = 'hidden';
-        card.style.boxShadow = '0 4px 10px rgba(0,0,0,.3)';
+        card.className = 'bwt-card bwt-map';
 
         const iframe = document.createElement('iframe');
-        iframe.width = '240';
-        iframe.height = '180';
-        iframe.style.border = '0';
-        iframe.style.display = 'block';
         iframe.loading = 'lazy';
         iframe.referrerPolicy = 'no-referrer-when-downgrade';
         iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
