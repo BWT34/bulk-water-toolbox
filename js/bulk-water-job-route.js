@@ -66,6 +66,7 @@
         card.style.background = '#08122f';
         card.style.color = 'white';
         card.style.width = '240px';
+        card.style.boxSizing = 'border-box';
         card.style.padding = '10px 12px';
         card.style.borderRadius = '10px';
         card.style.boxShadow = '0 4px 10px rgba(0,0,0,.3)';
