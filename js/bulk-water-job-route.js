@@ -2,7 +2,7 @@
     if (document.getElementById('bwt-job-route')) return;
 
     // ---- Config ----
-    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
+    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
     const ORIGIN = 'Upper Hutt, New Zealand';
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
 
@@ -38,6 +38,7 @@
         #bwt-job-route .bwt-route-duration { font-size: 24px; font-weight: 300; margin-top: 6px; }
         #bwt-job-route .bwt-route-delay { font-size: 10px; color: #94a3b8; margin-top: 4px; }
         #bwt-job-route .bwt-map {
+            display: none;
             overflow: hidden;
             box-shadow: 0 4px 10px rgba(0,0,0,.3);
         }
@@ -55,6 +56,7 @@
             #bwt-job-route .bwt-route-status { font-size: 12px; }
             #bwt-job-route .bwt-route-duration { font-size: 38px; }
             #bwt-job-route .bwt-route-delay { font-size: 12px; }
+            #bwt-job-route .bwt-map { display: block; }
             #bwt-job-route .bwt-map iframe { height: 280px; }
         }
     `;
