@@ -11,6 +11,13 @@
     // width to use (desktop/tablet).
     const styleTag = document.createElement('style');
     styleTag.textContent = `
+        /* iOS Safari has a well-known bug where opening the on-screen
+           keyboard resizes the viewport in a way that makes fixed-
+           position elements jump/drag visibly. Hiding the panel while
+           any field is focused (mobile only) sidesteps it entirely. */
+        #bwt-job-route.bwt-typing {
+            display: none;
+        }
         #bwt-job-route .bwt-card {
             width: 240px;
             box-sizing: border-box;
@@ -76,6 +83,37 @@
         c.textContent = 'Looking for delivery address field…';
         return c;
     })());
+
+    // ---- Hide panel while typing on mobile (iOS keyboard/fixed-
+    // position bug workaround) ----
+
+    function isMobileWidth() {
+        return window.matchMedia('(max-width: 899px)').matches;
+    }
+
+    document.addEventListener('focusin', (e) => {
+        if (!isMobileWidth()) return;
+        if (e.target.matches && e.target.matches('input, textarea, select')) {
+            panel.classList.add('bwt-typing');
+        }
+    });
+
+    document.addEventListener('focusout', (e) => {
+        if (!isMobileWidth()) return;
+        if (!(e.target.matches && e.target.matches('input, textarea, select'))) return;
+
+        // Small delay in case focus is just moving to the next field
+        // (e.g. tabbing from Address Line 1 to Address Line 2) —
+        // avoids a visible flicker if we un-hide and immediately
+        // re-hide the panel between fields.
+        setTimeout(() => {
+            const active = document.activeElement;
+            const stillTyping = active && active.matches && active.matches('input, textarea, select');
+            if (!stillTyping) {
+                panel.classList.remove('bwt-typing');
+            }
+        }, 100);
+    });
 
     function buildMessageCard(text) {
         const card = document.createElement('div');
