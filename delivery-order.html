@@ -40,6 +40,13 @@ body {
         background-size: 120%;
         background-position: center 10%;
         background-repeat: no-repeat;
+
+        /* iOS Safari has well-documented jank/scroll-drag issues with
+           a fixed background — this is very likely what's causing the
+           page to "move under your finger". Fixed backgrounds are fine
+           on desktop, so this only turns it off below the mobile
+           breakpoint. */
+        background-attachment: scroll;
     }
 }
 
@@ -95,11 +102,11 @@ body {
 
 <!-- Traffic widget — reads the Delivery Address field once it appears
      above and shows a live traffic-aware ETA from the depot -->
-<script src="js/bulk-water-job-route.js"></script>
+<script src="js/bulk-water-job-route.js?v=2"></script>
 
 <!-- Weather panel — desktop/tablet only, sits on the left to balance
      the traffic widget on the right -->
-<script src="js/bulk-water-weather-panel.js"></script>
+<script src="js/bulk-water-weather-panel.js?v=2"></script>
 
 </body>
 </html>
