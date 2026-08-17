@@ -9,20 +9,87 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background: #f3f4f6;
-    padding: 20px;
+
+    background:
+        linear-gradient(
+            rgba(0,50,50,0.45),
+            rgba(0,30,30,0.60)
+        ),
+        url('trucks.jpg');
+
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding: 80px 20px 20px 20px;
+}
+
+/* MOBILE — same swap the toolbox page uses */
+@media (max-width: 768px) {
+    body {
+        background:
+            linear-gradient(
+                rgba(0,50,50,0.45),
+                rgba(0,30,30,0.60)
+            ),
+            url('Trucks2.jpg');
+
+        background-size: 120%;
+        background-position: center 10%;
+        background-repeat: no-repeat;
+
+        /* iOS Safari has well-documented jank/scroll-drag issues with
+           a fixed background — this is very likely what's causing the
+           page to "move under your finger". Fixed backgrounds are fine
+           on desktop, so this only turns it off below the mobile
+           breakpoint. */
+        background-attachment: scroll;
+    }
 }
 
 .back-link {
-    display: inline-block;
-    margin-bottom: 16px;
-    color: #08122f;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100000;
+
+    padding: 8px 16px;
+
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+
+    color: white;
     font-weight: 600;
     text-decoration: none;
+
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
 }
 
 .back-link:hover {
-    text-decoration: underline;
+    background: rgba(255,255,255,0.25);
+}
+
+.form-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Once side panels are visible (matches the 900px breakpoint used by
+   both the weather panel and traffic widget), size the form to the
+   space actually left between them, with a sensible floor so it
+   never gets uncomfortably narrow */
+@media (min-width: 900px) {
+    .form-wrap {
+        width: calc(100vw - 670px);
+        max-width: 900px;
+        min-width: 480px;
+    }
 }
 </style>
 </head>
@@ -31,12 +98,18 @@ body {
 
 <a class="back-link" href="index.html">← Back to Toolbox</a>
 
+<div class="form-wrap">
 <!-- CognitoForms seamless embed — renders the form directly here -->
 <script src="https://www.cognitoforms.com/f/seamless.js" data-key="x8kTpqMjnE6DLzGvDRt_qg" data-form="46"></script>
+</div>
 
 <!-- Traffic widget — reads the Delivery Address field once it appears
      above and shows a live traffic-aware ETA from the depot -->
-<script src="js/bulk-water-job-route.js"></script>
+<script src="js/bulk-water-job-route.js?v=3"></script>
+
+<!-- Weather panel — desktop/tablet only, sits on the left to balance
+     the traffic widget on the right -->
+<script src="js/bulk-water-weather-panel.js?v=2"></script>
 
 </body>
 </html>
