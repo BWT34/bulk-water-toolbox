@@ -15,15 +15,23 @@ body {
         url('trucks.jpg');
 
     background-size: cover;
-    background-position: center top; /* ✅ better alignment */
+    background-position: center top;
     background-repeat: no-repeat;
 
     background-attachment: fixed;
 
-    min-height: 100vh; /* ✅ fills screen */
+    min-height: 100vh;
 
     color: white;
 }
+
+/* MOBILE — disable fixed attachment (iOS Safari scroll-jank bug) */
+@media (max-width: 768px) {
+    body {
+        background-attachment: scroll;
+    }
+}
+
 /* HEADER */
 .header {
     background: rgba(255,255,255,0.15);
@@ -210,7 +218,7 @@ body {
 </a>
  
     <a class="card" href="#" onclick="showTruckPopup()">
-    <div class="icon">🚚🛠️</div>
+        <div class="icon">🚚🛠️</div>
     Truck Breakdown Form
 </a>
     
@@ -220,7 +228,7 @@ body {
 </a> 
     
     <a class="card" href="Training.html">
-    <div class="icon">🏠📁</div>
+    <div class="icon">📚📁</div>
     Training Resources
 </a>
 </div>
@@ -232,7 +240,7 @@ body {
 
         <h2>🚰 Weekly Environmental Safety Focus</h2>
 
-        <img src="Spill%20Prevention.jpg"
+        <img id="safetyFocusImage"
              style="max-width:100%; max-height:500px; border-radius:10px;">
 
         <br><br>
@@ -249,7 +257,28 @@ body {
 </div>
     <script>
 
+// ---- Random safety image ----
+// Add a new filename to this array for each image you upload to the
+// repo. A random one is picked every time someone opens the popup.
+const SAFETY_IMAGES = [
+    'Spill Prevention.jpg'
+    // 'Second Image.jpg',
+    // 'Third Image.jpg',
+    // 'Fourth Image.jpg',
+    // 'Fifth Image.jpg',
+    // 'Sixth Image.jpg',
+];
+
+function getRandomSafetyImage() {
+    const randomIndex = Math.floor(Math.random() * SAFETY_IMAGES.length);
+    return SAFETY_IMAGES[randomIndex];
+}
+
 function showTruckPopup() {
+
+    const filename = getRandomSafetyImage();
+    document.getElementById('safetyFocusImage').src = encodeURI(filename);
+
     document.getElementById("truckPopup").style.display = "flex";
 }
 
@@ -271,4 +300,3 @@ function openTruckBreakdown() {
 </script>
 </body>
 </html>
-
