@@ -209,7 +209,10 @@ body {
     Potable Water Storage Tank Inspection Form
 </a>
  
-    <a class="card" href="#" onclick="showTruckPopupdiv>
+    # return false;">
+
+    <div class="icon">🚚🛠️</div>
+
     Truck Breakdown Form
 
 </a>
@@ -236,10 +239,13 @@ body {
 
         <br><br>
 
-        <button onclick="        <button onclick="closeTruckPopup()">
-            Close
+        <button onclick="openTruckBreakdown()">
+            Continue to Truck Breakdown Form
         </button>
 
+        <button onclick="closeTruckPopup()">
+            Close
+        </button>
     </div>
 
 </div>
@@ -256,8 +262,9 @@ function closeTruckPopup() {
 function openTruckBreakdown() {
 
     window.open(
-        "https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver",
-        "_blank"
+        "https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver"
+        ,
+            "_blank"
     );
 
     closeTruckPopup();
