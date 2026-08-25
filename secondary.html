@@ -186,7 +186,7 @@ body {
     Back to main page
 </a>
     
-    <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/BulkWaterRemoteDailySafetyBriefing">
+    <a class="card" href="#" onclick="showSafetyPopup('https://www.cognitoforms.com/BulkWaterTransportLtd/BulkWaterRemoteDailySafetyBriefing')">
     <div class="icon">📅⛑️</div>
     Daily Safety Briefing
 </a>
@@ -217,7 +217,7 @@ body {
     Potable Water Storage Tank Inspection Form
 </a>
  
-    <a class="card" href="#" onclick="showTruckPopup()">
+    <a class="card" href="#" onclick="showSafetyPopup('https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver')">
         <div class="icon">🚚🛠️</div>
     Truck Breakdown Form
 </a>
@@ -245,8 +245,8 @@ body {
 
         <br><br>
 
-        <button onclick="openTruckBreakdown()">
-            Continue to Truck Breakdown Form
+        <button onclick="continueToDestination()">
+            Continue
         </button>
 
         <button onclick="closeTruckPopup()">
@@ -274,7 +274,16 @@ function getRandomSafetyImage() {
     return SAFETY_IMAGES[randomIndex];
 }
 
-function showTruckPopup() {
+// Remembers which form to open once someone clicks "Continue" — set
+// fresh each time the popup is opened, by whichever card triggered it.
+let pendingDestinationUrl = null;
+
+// Call this from any card: onclick="showSafetyPopup('https://...')"
+// Works for any destination — Truck Breakdown, Daily Safety Briefing,
+// or any future form you want gated behind the safety reminder.
+function showSafetyPopup(destinationUrl) {
+
+    pendingDestinationUrl = destinationUrl;
 
     const filename = getRandomSafetyImage();
     document.getElementById('safetyFocusImage').src = encodeURI(filename);
@@ -284,15 +293,14 @@ function showTruckPopup() {
 
 function closeTruckPopup() {
     document.getElementById("truckPopup").style.display = "none";
+    pendingDestinationUrl = null;
 }
 
-function openTruckBreakdown() {
+function continueToDestination() {
 
-    window.open(
-        "https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver"
-        ,
-            "_blank"
-    );
+    if (pendingDestinationUrl) {
+        window.open(pendingDestinationUrl, "_blank");
+    }
 
     closeTruckPopup();
 }
