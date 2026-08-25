@@ -127,6 +127,35 @@ body {
     font-size: 42px;
     margin-bottom: 12px;
 }
+.notice-overlay{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+
+    background:rgba(0,0,0,0.8);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    z-index:9999;
+}
+
+.notice-box{
+    background:white;
+    color:black;
+
+    width:90%;
+    max-width:700px;
+
+    padding:20px;
+
+    border-radius:20px;
+
+    text-align:center;
+}    
 </style>
 </head>
 
@@ -180,11 +209,10 @@ body {
     Potable Water Storage Tank Inspection Form
 </a>
  
-    <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver">
-        <div class="icon">🚚🛠️</div>
+    <a class="card" href="#" onclick="showTruckPopupdiv>
     Truck Breakdown Form
-</a> 
 
+</a>
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/ResultsBWTToolboxMeeting">
         <div class="icon">🧰🦺</div>
     ToolBox Meeting Form
@@ -195,7 +223,47 @@ body {
     Training Resources
 </a>
 </div>
+<!-- TRUCK BREAKDOWN SAFETY POPUP -->
 
+<div id="truckPopup" class="notice-overlay" style="display:none;">
+
+    <div class="notice-box">
+
+        <h2>🚰 Weekly Environmental Safety Focus</h2>
+
+        <img src="Spill%20Prevention.jpg"
+             style="max-width:100%; max-height:500px; border-radius:10px;">
+
+        <br><br>
+
+        <button onclick="        <button onclick="closeTruckPopup()">
+            Close
+        </button>
+
+    </div>
+
+</div>
+    <script>
+
+function showTruckPopup() {
+    document.getElementById("truckPopup").style.display = "flex";
+}
+
+function closeTruckPopup() {
+    document.getElementById("truckPopup").style.display = "none";
+}
+
+function openTruckBreakdown() {
+
+    window.open(
+        "https://www.cognitoforms.com/BulkWaterTransportLtd/TruckBreakdownReportDriver",
+        "_blank"
+    );
+
+    closeTruckPopup();
+}
+
+</script>
 </body>
 </html>
 
