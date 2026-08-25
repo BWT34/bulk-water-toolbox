@@ -299,7 +299,7 @@ function closeTruckPopup() {
 function continueToDestination() {
 
     if (pendingDestinationUrl) {
-        window.open(pendingDestinationUrl, "_blank");
+        window.location.href = pendingDestinationUrl;
     }
 
     closeTruckPopup();
