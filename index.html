@@ -2,16 +2,38 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Bulk Water Toolbox</title>
 
+<!-- Home-screen / full-screen app support — see note below on
+     "Add to Home Screen" for this to actually take effect -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d1f2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BWT Toolbox">
+<link rel="apple-touch-icon" href="BWT LOGO.jpg">
+
 <style>
+:root {
+    /* Extra breathing room so content doesn't sit under the notch/
+       status bar area once running full-screen from the home screen */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
     min-height: 100vh;
     color: white;
     position: relative;
+
+    /* Keeps header/content clear of the notch and the home-bar area
+       when running full-screen from the home screen */
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    box-sizing: border-box;
 }
 
 /* Fixed backdrop layer — sits pinned behind everything. Content
@@ -24,7 +46,10 @@ body {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    /* Extends past the safe-area edges so the image itself fills
+       right behind the notch/status bar instead of leaving a gap */
+    height: calc(100vh + var(--safe-top) + var(--safe-bottom));
+    margin-top: calc(-1 * var(--safe-top));
     z-index: -1;
 
     background:
@@ -314,7 +339,7 @@ body {
 </div>
 
 <div class="title">
-    🏠 Main Toolbox Menu 🏠
+    Main Toolbox Menu
     <div class="ticker-wrap">
     <div class="ticker" id="portalTicker"></div>
 </div>
@@ -323,7 +348,7 @@ body {
 <div class="grid">
 
 <a class="card" href="secondary.html">
-    <div class="icon">🚚</div>
+    <div class="icon">👷</div>
     Drivers - Daily Forms
 </a>
 
