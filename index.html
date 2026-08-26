@@ -9,6 +9,23 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
+    min-height: 100vh;
+    color: white;
+    position: relative;
+}
+
+/* Fixed backdrop layer — sits pinned behind everything. Content
+   scrolls normally on top of it; the image itself never moves.
+   This is more reliable across mobile browsers than
+   background-attachment:fixed, which many phones ignore or
+   render with visible jank/dragging. */
+.bg-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
 
     background:
         linear-gradient(
@@ -20,19 +37,13 @@ body {
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
-
-    background-attachment: fixed;
-
-    min-height: 100vh; /* ✅ fills screen */
-
-    color: white;
 }
 
 /* MOBILE SETTINGS */
 
 @media (max-width: 768px) {
 
-    body {
+    .bg-fixed {
 
         background:
             linear-gradient(
@@ -44,7 +55,6 @@ body {
         background-size: 120%;
         background-position: center 10%;
         background-repeat: no-repeat;
-        min-height: 100vh; /* ✅ fills screen */
     }
 
     .header img {
@@ -293,6 +303,10 @@ body {
 
 <body>
 
+<!-- Fixed background layer — stays pinned in place while everything
+     else below scrolls normally over the top of it -->
+<div class="bg-fixed"></div>
+
 <!-- LOGO -->
 <div class="header">
     <!-- Replace src with where you upload your logo -->
@@ -300,7 +314,7 @@ body {
 </div>
 
 <div class="title">
-    Main Toolbox Menu
+    🏠 Main Toolbox Menu 🏠
     <div class="ticker-wrap">
     <div class="ticker" id="portalTicker"></div>
 </div>
@@ -309,42 +323,42 @@ body {
 <div class="grid">
 
 <a class="card" href="secondary.html">
-    <div class="icon">🚚</div>
+    <div class="icon">👷🚚</div>
     Drivers - Daily Forms
 </a>
 
 <a class="card" href="Thirdly.html">
-    <div class="icon">📊</div>
+    <div class="icon">🧑‍💼📊</div>
     Management – Operational Forms
 </a>
 
 <a class="card" href="delivery-order.html">
-    <div class="icon">💳</div>
+    <div class="icon">💳💵</div>
     Delivery Order
 </a> 
     
 <a class="card" href="Hire_Agreements.html">
-    <div class="icon">📁</div>
+    <div class="icon">🏠📁</div>
     Hire Agreement Forms
 </a> 
     
     <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/PPEIssueRegister">
-    <div class="icon">🦺</div>
+    <div class="icon">🥽🦺</div>
     PPE Supply Register
 </a>
 
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/HolidayLeaveRequestForm">
-    <div class="icon">🏖️</div>
+    <div class="icon">🏖️📅</div>
     Leave Request
 </a>
 
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/SiteIncidentAndInjuryRegister">
-    <div class="icon">🚑</div>
+    <div class="icon">🚨🚑</div>
     Site Incident and Injury Register
 </a>
 
     <a class="card" href="weather.html">
-    <div class="icon">🌦️</div>
+    <div class="icon">🌦️🚛</div>
     Weather
 </a>
         
