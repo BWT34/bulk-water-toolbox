@@ -1,0 +1,15 @@
+{
+  "name": "Bulk Water Transport Toolbox",
+  "short_name": "BWT Toolbox",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0d1f2d",
+  "theme_color": "#0d1f2d",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
