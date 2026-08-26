@@ -9,21 +9,30 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
+    min-height: 100vh;
+    color: white;
+    position: relative;
+}
+
+/* Fixed backdrop layer — stays pinned behind everything while the
+   content scrolls normally on top of it. More reliable across mobile
+   browsers than background-attachment:fixed, which many phones either
+   ignore or render with visible jank/dragging. */
+.bg-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
 
     background: 
         linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
         url('trucks.jpg');
 
     background-size: cover;
-    background-position: center top; /* ✅ better alignment */
+    background-position: center top;
     background-repeat: no-repeat;
-
-    
-    background-attachment: fixed;
-    
-    min-height: 100vh; /* ✅ fills screen */
-
-    color: white;
 }
 
 /* HEADER */
@@ -136,6 +145,10 @@ body {
 
 <body>
 
+<!-- Fixed background layer — stays pinned in place while everything
+     else below scrolls normally over the top of it -->
+<div class="bg-fixed"></div>
+
 <!-- LOGO -->
 <div class="header">
     <!-- Replace src with where you upload your logo -->
@@ -149,33 +162,33 @@ body {
 <div class="grid">
 
 <a class="card" href="index.html">
-    <div class="icon">🏠📁</div>
+    <div class="icon">🏠</div>
     Back to main page
 </a>
 
 <a class="card" href="POC.html">
-    <div class="icon">🚧🔬</div>
+    <div class="icon">🚧</div>
     POC - General POC / Testing
 </a>
     
        
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/EnquiriesScreen">
-    <div class="icon">🧐🔎</div>
+    <div class="icon">🔎</div>
     Order Enquiry Screen
 </a> 
     
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/customerbulkwaterdeliveryorder">
-    <div class="icon">💳💵</div>
+    <div class="icon">💳</div>
     Delivery Order
 </a> 
     
 <a class="card" href="Hire_Agreements.html">
-    <div class="icon">🏠📁</div>
+    <div class="icon">📁</div>
     Hire Agreement Forms
 </a>
     
     <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/BWTToolboxMeetingMaster">
-    <div class="icon">🧰🦺</div>
+    <div class="icon">🧰</div>
     ToolBox Meeting - Facilitator Form.
 </a>
     
@@ -215,12 +228,12 @@ body {
 </a>
 
  <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/TruckAssetsForm">
-    <div class="icon">🚛🛠️</div>
+    <div class="icon">🛠️</div>
     Truck Asset Maintenance Form
 </a>   
     
     <a class="card" href="https://www.cognitoforms.com/bulkwatertransportltd/bwt-caa">
-    <div class="icon">👤💳</div>
+    <div class="icon">💳</div>
     Credit Account Application Form
 </a>   
 
