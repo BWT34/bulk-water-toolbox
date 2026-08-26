@@ -9,6 +9,22 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
+    min-height: 100vh;
+    color: white;
+    position: relative;
+}
+
+/* Fixed backdrop layer — stays pinned behind everything while the
+   content scrolls normally on top of it. More reliable across mobile
+   browsers than background-attachment:fixed, which many phones either
+   ignore or render with visible jank/dragging. */
+.bg-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
 
     background: 
         linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
@@ -17,19 +33,6 @@ body {
     background-size: cover;
     background-position: center top;
     background-repeat: no-repeat;
-
-    background-attachment: fixed;
-
-    min-height: 100vh;
-
-    color: white;
-}
-
-/* MOBILE — disable fixed attachment (iOS Safari scroll-jank bug) */
-@media (max-width: 768px) {
-    body {
-        background-attachment: scroll;
-    }
 }
 
 /* HEADER */
@@ -168,6 +171,10 @@ body {
 </head>
 
 <body>
+
+<!-- Fixed background layer — stays pinned in place while everything
+     else below scrolls normally over the top of it -->
+<div class="bg-fixed"></div>
 
 <!-- LOGO -->
 <div class="header">
