@@ -82,9 +82,9 @@ body {
         background-repeat: no-repeat;
     }
 
-    .header img {
-        width: 80%;
-        max-width: 350px;
+    .logo-ticker img {
+        height: 60px;
+        margin: 0 25px;
     }
 
 }
@@ -109,23 +109,42 @@ body {
     margin: 12px;
     padding: 8px;
 
-    text-align: center;
-
     box-shadow:
         0 8px 32px rgba(0,0,0,0.25);
+
+    /* Needed so the sliding logos are clipped to the header's edges
+       rather than spilling out visibly */
+    overflow: hidden;
 }
 
-.header img {
-    display: block;
-    margin: 0 auto;
+/* Same seamless-loop technique as the text ticker below: two
+   identical copies sit side by side, and the animation only ever
+   slides by exactly half the total width — so the moment the first
+   copy scrolls fully offscreen, the second is sitting in the exact
+   start position, making the loop invisible. */
+.logo-ticker {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    animation: logoTickerScroll 18s linear infinite;
+}
 
-    width: 100%;
-    max-width: 900px;
-
-    height: auto;
+.logo-ticker img {
+    height: 90px;
+    width: auto;
+    margin: 0 40px;
+    flex-shrink: 0;
 
     animation: logoGlow 3s ease-in-out infinite;
+}
 
+@keyframes logoTickerScroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
 }
 
 @keyframes logoGlow {
@@ -149,16 +168,6 @@ body {
 
 }
 
-/* MOBILE LOGO */
-
-@media (max-width: 768px) {
-
-    .header img {
-        width: 80%;
-        max-width: 350px;
-    }
-
-}
 /* TITLE BAR */
 .title {
     text-align: center;
@@ -334,12 +343,16 @@ body {
 
 <!-- LOGO -->
 <div class="header">
-    <!-- Replace src with where you upload your logo -->
-    <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
+    <!-- Two copies needed for the seamless scroll loop — see .logo-ticker
+         animation in the CSS. Replace src on both if you change the logo. -->
+    <div class="logo-ticker">
+        <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
+        <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
+    </div>
 </div>
 
 <div class="title">
-    Main Toolbox Menu
+    🏠 Main Toolbox Menu 🏠
     <div class="ticker-wrap">
     <div class="ticker" id="portalTicker"></div>
 </div>
@@ -348,42 +361,42 @@ body {
 <div class="grid">
 
 <a class="card" href="secondary.html">
-    <div class="icon">🚚</div>
+    <div class="icon">👷🚚</div>
     Drivers - Daily Forms
 </a>
 
 <a class="card" href="Thirdly.html">
-    <div class="icon">📊</div>
+    <div class="icon">🧑‍💼📊</div>
     Management – Operational Forms
 </a>
 
 <a class="card" href="delivery-order.html">
-    <div class="icon">💳</div>
+    <div class="icon">💳💵</div>
     Delivery Order
 </a> 
     
 <a class="card" href="Hire_Agreements.html">
-    <div class="icon">📁</div>
+    <div class="icon">🏠📁</div>
     Hire Agreement Forms
 </a> 
     
     <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/PPEIssueRegister">
-    <div class="icon">🦺</div>
+    <div class="icon">🥽🦺</div>
     PPE Supply Register
 </a>
 
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/HolidayLeaveRequestForm">
-    <div class="icon">🏖️</div>
+    <div class="icon">🏖️📅</div>
     Leave Request
 </a>
 
 <a class="card" href="https://www.cognitoforms.com/BulkWaterTransportLtd/SiteIncidentAndInjuryRegister">
-    <div class="icon">🚑</div>
+    <div class="icon">🚨🚑</div>
     Site Incident and Injury Register
 </a>
 
     <a class="card" href="weather.html">
-    <div class="icon">🌦️</div>
+    <div class="icon">🌦️🚛</div>
     Weather
 </a>
         
