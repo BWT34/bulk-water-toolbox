@@ -24,6 +24,19 @@ body{
     gap:12px;
 }
 
+.bwt-warning{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:rgba(239,68,68,0.15);
+    border:1px solid rgba(239,68,68,0.4);
+    color:#fecaca;
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:12px;
+    margin-top:10px;
+}
+
 </style>
 </head>
 <body>
@@ -89,7 +102,42 @@ function weatherIcon(code){
 
 }
 
-function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal){
+// ---- Informal advisory badges ----
+// NOT official MetService/government warnings — just sensible
+// thresholds derived from the same forecast data already being
+// fetched, flagged clearly as advisory-only so nobody mistakes
+// these for an authoritative alert.
+function getWarnings(wind, code, minTemp){
+
+    const warnings = [];
+
+    if(wind >= 70){
+        warnings.push({ icon:'🌪️', text:'Very high wind (advisory)' });
+    } else if(wind >= 50){
+        warnings.push({ icon:'💨', text:'High wind (advisory)' });
+    }
+
+    if([95,96,99].includes(code)){
+        warnings.push({ icon:'⛈️', text:'Thunderstorm risk (advisory)' });
+    }
+
+    if([65,67,82,86].includes(code)){
+        warnings.push({ icon:'🌧️', text:'Heavy rain/snow (advisory)' });
+    }
+
+    if([45,48].includes(code)){
+        warnings.push({ icon:'🌫️', text:'Fog — reduced visibility (advisory)' });
+    }
+
+    if(minTemp <= 2){
+        warnings.push({ icon:'🥶', text:'Frost/ice risk overnight (advisory)' });
+    }
+
+    return warnings;
+
+}
+
+function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal, warnings){
 
     const card = document.createElement('div');
 
@@ -102,6 +150,13 @@ function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal){
     if(isLocal){
         card.style.border = '2px solid #38bdf8';
     }
+
+    const warningsHtml = (warnings || []).map(w => `
+        <div class="bwt-warning">
+            <span>${w.icon}</span>
+            <span>${w.text}</span>
+        </div>
+    `).join('');
 
     card.innerHTML = `
         <div style="
@@ -153,6 +208,7 @@ function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal){
             </div>
 
         </div>
+        ${warningsHtml}
     `;
 
     return card;
@@ -188,6 +244,7 @@ async function fetchWeatherFor(lat, lon){
         wind: Math.round(data.current.wind_speed_10m),
         maxTemp: Math.round(data.daily.temperature_2m_max[0]),
         minTemp: Math.round(data.daily.temperature_2m_min[0]),
+        code: data.current.weather_code,
         icon: weatherIcon(data.current.weather_code)
     };
 
@@ -257,6 +314,8 @@ async function loadLocalCard(panel){
             reverseGeocode(lat, lon)
         ]);
 
+        const warnings = getWarnings(weather.wind, weather.code, weather.minTemp);
+
         const card = buildCard(
             name,
             weather.currentTemp,
@@ -264,7 +323,8 @@ async function loadLocalCard(panel){
             weather.maxTemp,
             weather.minTemp,
             weather.icon,
-            true
+            true,
+            warnings
         );
 
         panel.replaceChild(card, placeholder);
@@ -308,6 +368,7 @@ async function loadWeather(){
         try{
 
             const weather = await fetchWeatherFor(loc.lat, loc.lon);
+            const warnings = getWarnings(weather.wind, weather.code, weather.minTemp);
 
             const card = buildCard(
                 loc.name,
@@ -316,7 +377,8 @@ async function loadWeather(){
                 weather.maxTemp,
                 weather.minTemp,
                 weather.icon,
-                false
+                false,
+                warnings
             );
 
             panel.appendChild(card);
