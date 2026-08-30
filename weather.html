@@ -53,14 +53,25 @@ body{
 .bwt-warning{
     display:flex;
     align-items:center;
+    justify-content:center;
     gap:6px;
-    background:rgba(239,68,68,0.15);
-    border:1px solid rgba(239,68,68,0.4);
-    color:#fecaca;
-    padding:6px 10px;
-    border-radius:8px;
-    font-size:12px;
+    background:#dc2626;
+    color:white;
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
     margin-top:10px;
+}
+
+.bwt-disclaimer{
+    max-width:420px;
+    margin:16px auto 0 auto;
+    font-size:11px;
+    color:#6b7280;
+    text-align:center;
 }
 
 </style>
@@ -140,25 +151,25 @@ function getWarnings(wind, code, minTemp){
     const warnings = [];
 
     if(wind >= 70){
-        warnings.push({ icon:'🌪️', text:'Very high wind (advisory)' });
+        warnings.push({ icon:'⚠️', text:'Severe Wind' });
     } else if(wind >= 50){
-        warnings.push({ icon:'💨', text:'High wind (advisory)' });
+        warnings.push({ icon:'⚠️', text:'Wind' });
     }
 
     if([95,96,99].includes(code)){
-        warnings.push({ icon:'⛈️', text:'Thunderstorm risk (advisory)' });
+        warnings.push({ icon:'⚠️', text:'Thunderstorm' });
     }
 
     if([65,67,82,86].includes(code)){
-        warnings.push({ icon:'🌧️', text:'Heavy rain/snow (advisory)' });
+        warnings.push({ icon:'⚠️', text:'Heavy Rain' });
     }
 
     if([45,48].includes(code)){
-        warnings.push({ icon:'🌫️', text:'Fog — reduced visibility (advisory)' });
+        warnings.push({ icon:'⚠️', text:'Fog' });
     }
 
     if(minTemp <= 2){
-        warnings.push({ icon:'🥶', text:'Frost/ice risk overnight (advisory)' });
+        warnings.push({ icon:'❄️', text:'Frost Risk' });
     }
 
     return warnings;
@@ -423,6 +434,11 @@ async function loadWeather(){
         }
 
     }
+
+    const disclaimer = document.createElement('div');
+    disclaimer.className = 'bwt-disclaimer';
+    disclaimer.textContent = 'Wind/rain/frost badges are advisory thresholds we set, not official MetService warnings.';
+    panel.appendChild(disclaimer);
 
 }
 
