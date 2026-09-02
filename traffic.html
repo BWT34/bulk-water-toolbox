@@ -7,9 +7,33 @@
 <style>
 body{
     margin:0;
-    padding:20px;
+    padding:80px 20px 20px 20px;
+    box-sizing:border-box;
     background:#f3f4f6;
     font-family:'Segoe UI',sans-serif;
+}
+.back-link{
+    position:fixed;
+    top:20px;
+    left:20px;
+    z-index:100000;
+
+    padding:8px 16px;
+
+    background:rgba(255,255,255,0.15);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:14px;
+
+    color:#08122f;
+    font-weight:600;
+    text-decoration:none;
+
+    box-shadow:0 4px 16px rgba(0,0,0,0.15);
+}
+.back-link:hover{
+    background:rgba(255,255,255,0.35);
 }
 h1{
     text-align:center;
@@ -39,6 +63,7 @@ h1{
 </style>
 </head>
 <body>
+<a class="back-link" href="index.html">← Back to Toolbox</a>
 <h1>Wellington Traffic Alerts</h1>
 <div id="traffic"></div>
 <script>
@@ -75,7 +100,7 @@ fetch(WORKER_URL)
             <div class="type">${event.eventType}</div>
             <div>${event.impact || ''}</div>
             <div class="region">${event.region?.name || ''}</div>
-            <div>${(event.eventComments || '').substring(0,200)}...</div>
+            <div>${(event.eventComments || '').substring(0,80)}...</div>
         `;
         container.appendChild(card);
     });
