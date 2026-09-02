@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wellington Traffic Alerts</title>
+<title>NZ Traffic Alerts</title>
 <style>
 body{
     margin:0;
@@ -38,13 +38,51 @@ body{
 h1{
     text-align:center;
     color:#08122f;
+    margin-bottom:8px;
+}
+.subtitle{
+    text-align:center;
+    color:#6b7280;
+    font-size:13px;
     margin-bottom:20px;
 }
+.region-picker{
+    max-width:640px;
+    margin:0 auto 24px auto;
+    background:white;
+    border-radius:12px;
+    padding:16px;
+    box-shadow:0 4px 12px rgba(0,0,0,.1);
+}
+.region-picker-title{
+    font-weight:600;
+    color:#08122f;
+    margin-bottom:10px;
+    font-size:14px;
+}
+.region-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+    gap:8px;
+}
+.region-option{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:14px;
+    color:#374151;
+    cursor:pointer;
+    user-select:none;
+}
+.region-option input{
+    cursor:pointer;
+}
 .card{
+    max-width:640px;
+    margin:0 auto 12px auto;
     background:#08122f;
     color:white;
     padding:16px;
-    margin-bottom:12px;
     border-radius:12px;
     box-shadow:0 4px 12px rgba(0,0,0,.2);
 }
@@ -64,34 +102,111 @@ h1{
 </head>
 <body>
 <a class="back-link" href="index.html">← Back to Toolbox</a>
-<h1>Wellington Traffic Alerts</h1>
-<div id="traffic"></div>
-<script>
-// Your deployed Cloudflare Worker proxying the NZTA traffic feed —
-// same one used on the weather page.
-const WORKER_URL = 'https://bwt-traffic-proxy.bulkwatertransport.workers.dev';
+<h1>NZ Traffic Alerts</h1>
+<div class="subtitle">Tick the regions you want to see — your selection is remembered for next time.</div>
 
-fetch(WORKER_URL)
-.then(response => response.json())
-.then(data => {
-    const events = data.response.roadevent.filter(event => {
-        if (event.status !== 'Active')
-            return false;
-        if (event.eventIsland !== 'North Island')
-            return false;
-        const region =
-            (event.region?.name || '').toUpperCase();
-        return region === 'WELLINGTON';
+<div class="region-picker">
+    <div class="region-picker-title">Show alerts for:</div>
+    <div class="region-grid" id="regionGrid"></div>
+</div>
+
+<div id="traffic"></div>
+
+<script>
+
+// North Island regions, exactly as NZTA formats them in the feed.
+const AVAILABLE_REGIONS = [
+    'Northland',
+    'Auckland',
+    'Waikato',
+    'Bay of Plenty',
+    'Gisborne',
+    "Hawke's Bay",
+    'Taranaki',
+    'Manawatū-Whanganui',
+    'Wellington',
+    'Wairarapa'
+];
+
+const STORAGE_KEY = 'BWTTrafficRegions';
+const DEFAULT_REGIONS = ['Wellington', 'Wairarapa'];
+
+function loadSelectedRegions(){
+    try{
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved) return JSON.parse(saved);
+    }catch(err){}
+    return DEFAULT_REGIONS;
+}
+
+function saveSelectedRegions(regions){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(regions));
+}
+
+let selectedRegions = new Set(loadSelectedRegions());
+let allEvents = [];
+
+function buildRegionCheckboxes(){
+
+    const grid = document.getElementById('regionGrid');
+    grid.innerHTML = '';
+
+    AVAILABLE_REGIONS.forEach(region => {
+
+        const label = document.createElement('label');
+        label.className = 'region-option';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedRegions.has(region);
+        checkbox.addEventListener('change', () => {
+            if(checkbox.checked){
+                selectedRegions.add(region);
+            }else{
+                selectedRegions.delete(region);
+            }
+            saveSelectedRegions([...selectedRegions]);
+            renderEvents();
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(region));
+        grid.appendChild(label);
+
     });
+
+}
+
+function renderEvents(){
+
     const container = document.getElementById('traffic');
-    if (events.length === 0) {
+    container.innerHTML = '';
+
+    const events = allEvents.filter(event => {
+        if(event.status !== 'Active') return false;
+        if(event.eventIsland !== 'North Island') return false;
+        const region = event.region?.name || '';
+        return selectedRegions.has(region);
+    });
+
+    if(selectedRegions.size === 0){
         container.innerHTML = `
             <div class="card">
-                No active Wellington traffic events.
+                No regions selected — tick at least one above.
             </div>
         `;
         return;
     }
+
+    if(events.length === 0){
+        container.innerHTML = `
+            <div class="card">
+                No active traffic events for the selected region(s).
+            </div>
+        `;
+        return;
+    }
+
     events.forEach(event => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -104,6 +219,19 @@ fetch(WORKER_URL)
         `;
         container.appendChild(card);
     });
+
+}
+
+// Your deployed Cloudflare Worker proxying the NZTA traffic feed.
+const WORKER_URL = 'https://bwt-traffic-proxy.bulkwatertransport.workers.dev';
+
+buildRegionCheckboxes();
+
+fetch(WORKER_URL)
+.then(response => response.json())
+.then(data => {
+    allEvents = data.response.roadevent || [];
+    renderEvents();
 })
 .catch(error => {
     document.getElementById('traffic').innerHTML = `
@@ -113,6 +241,7 @@ fetch(WORKER_URL)
     `;
     console.error(error);
 });
+
 </script>
 </body>
 </html>
