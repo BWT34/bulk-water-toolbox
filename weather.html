@@ -66,7 +66,27 @@ body{
     margin-top:10px;
 }
 
-.bwt-disclaimer{
+.bwt-traffic{
+    display:flex;
+    align-items:flex-start;
+    gap:6px;
+    background:#d97706;
+    color:white;
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:12px;
+    font-weight:700;
+    margin-top:10px;
+    text-align:left;
+}
+
+.bwt-traffic .bwt-traffic-detail{
+    font-weight:400;
+    text-transform:none;
+    letter-spacing:normal;
+}
+
+.bwt-legend{
     max-width:420px;
     margin:16px auto 0 auto;
     font-size:11px;
@@ -176,7 +196,80 @@ function getWarnings(wind, code, minTemp){
 
 }
 
-function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal, warnings){
+// ---- Traffic integration ----
+// Your deployed Cloudflare Worker proxying the NZTA traffic feed.
+const TRAFFIC_WORKER_URL = 'https://bwt-traffic-proxy.bulkwatertransport.workers.dev';
+
+// NZTA's regions are coarser than our per-city cards — Wellington,
+// Porirua, Hutt Valley, Upper Hutt, and Kāpiti all share one broad
+// "WELLINGTON" region tag, while Wairarapa is genuinely separate.
+// So for the Wellington-area cities we also require the town's name
+// to actually appear in the event's own location text, rather than
+// showing every Wellington-region event on every one of those cards.
+const WELLINGTON_AREA_CITIES = ['Wellington', 'Porirua', 'Hutt Valley', 'Upper Hutt', 'Kāpiti'];
+
+function normalizeRegion(name){
+    return (name || '')
+        .toUpperCase()
+        .replace(/[ĀĂĄ]/g,'A').replace(/[ĒĔĖĘĚ]/g,'E')
+        .replace(/[ĪĬĮİ]/g,'I').replace(/[ŌŎŐ]/g,'O')
+        .replace(/[ŪŬŮŰŲ]/g,'U')
+        .replace(/['’\-]/g,' ')
+        .replace(/\s+/g,' ')
+        .trim();
+}
+
+async function fetchTrafficEvents(){
+
+    try{
+
+        const data = await fetch(TRAFFIC_WORKER_URL).then(r => r.json());
+
+        return (data.response.roadevent || []).filter(event => {
+            if(event.status !== 'Active') return false;
+            if(event.eventIsland !== 'North Island') return false;
+            return true;
+        });
+
+    }
+    catch(err){
+
+        console.log('Traffic fetch error:', err);
+        return [];
+
+    }
+
+}
+
+function findTrafficForCity(cityName, events){
+
+    const cityNorm = normalizeRegion(cityName);
+
+    for(const event of events){
+
+        const region = normalizeRegion(event.region?.name);
+        const haystack = normalizeRegion(`${event.locationArea || ''} ${event.eventComments || ''}`);
+
+        if(cityNorm === 'WAIRARAPA'){
+            if(region === 'WAIRARAPA') return event;
+            continue;
+        }
+
+        if(WELLINGTON_AREA_CITIES.map(normalizeRegion).includes(cityNorm)){
+            if(region === 'WELLINGTON' && haystack.includes(cityNorm)) return event;
+            continue;
+        }
+
+        // Fallback for any other region — match on region name directly
+        if(region === cityNorm) return event;
+
+    }
+
+    return null;
+
+}
+
+function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal, warnings, trafficEvent){
 
     const card = document.createElement('div');
 
@@ -196,6 +289,25 @@ function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal, war
             <span>${w.text}</span>
         </div>
     `).join('');
+
+    let trafficHtml = '';
+
+    if(trafficEvent){
+
+        const location = trafficEvent.locationArea || trafficEvent.region?.name || 'Nearby';
+        const truncated = location.length > 60 ? location.substring(0,60) + '…' : location;
+
+        trafficHtml = `
+            <div class="bwt-traffic">
+                <span>🚧</span>
+                <span>
+                    DELAYS
+                    <span class="bwt-traffic-detail"> · ${truncated}</span>
+                </span>
+            </div>
+        `;
+
+    }
 
     card.innerHTML = `
         <div style="
@@ -248,6 +360,7 @@ function buildCard(name, currentTemp, wind, maxTemp, minTemp, icon, isLocal, war
 
         </div>
         ${warningsHtml}
+        ${trafficHtml}
     `;
 
     return card;
@@ -338,7 +451,7 @@ function getBrowserLocation(){
 
 }
 
-async function loadLocalCard(panel){
+async function loadLocalCard(panel, trafficEvents){
 
     // Placeholder while we wait on the permission prompt / fetch
     const placeholder = buildMessageCard('Checking your location…');
@@ -354,6 +467,7 @@ async function loadLocalCard(panel){
         ]);
 
         const warnings = getWarnings(weather.wind, weather.code, weather.minTemp);
+        const trafficEvent = findTrafficForCity(name, trafficEvents);
 
         const card = buildCard(
             name,
@@ -363,7 +477,8 @@ async function loadLocalCard(panel){
             weather.minTemp,
             weather.icon,
             true,
-            warnings
+            warnings,
+            trafficEvent
         );
 
         panel.replaceChild(card, placeholder);
@@ -390,8 +505,11 @@ async function loadWeather(){
 
     panel.innerHTML = '';
 
+    // Fetch traffic once for the whole panel, rather than once per card
+    const trafficEvents = await fetchTrafficEvents();
+
     // Local card goes first, and doesn't block the rest of the list
-    await loadLocalCard(panel);
+    await loadLocalCard(panel, trafficEvents);
 
     const locations = [
         { name:'Upper Hutt', lat:-41.125, lon:175.070 },
@@ -408,6 +526,7 @@ async function loadWeather(){
 
             const weather = await fetchWeatherFor(loc.lat, loc.lon);
             const warnings = getWarnings(weather.wind, weather.code, weather.minTemp);
+            const trafficEvent = findTrafficForCity(loc.name, trafficEvents);
 
             const card = buildCard(
                 loc.name,
@@ -417,7 +536,8 @@ async function loadWeather(){
                 weather.minTemp,
                 weather.icon,
                 false,
-                warnings
+                warnings,
+                trafficEvent
             );
 
             panel.appendChild(card);
@@ -435,10 +555,10 @@ async function loadWeather(){
 
     }
 
-    const disclaimer = document.createElement('div');
-    disclaimer.className = 'bwt-disclaimer';
-    disclaimer.textContent = 'Wind/rain/frost badges are advisory thresholds we set, not official MetService warnings.';
-    panel.appendChild(disclaimer);
+    const legend = document.createElement('div');
+    legend.className = 'bwt-legend';
+    legend.textContent = '⚠️ weather · 🚧 traffic — alerts appear on the affected region when issued. Wind/rain/frost badges are advisory thresholds we set, not official MetService warnings.';
+    panel.appendChild(legend);
 
 }
 
