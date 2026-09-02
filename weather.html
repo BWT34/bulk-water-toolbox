@@ -208,6 +208,12 @@ const TRAFFIC_WORKER_URL = 'https://bwt-traffic-proxy.bulkwatertransport.workers
 // showing every Wellington-region event on every one of those cards.
 const WELLINGTON_AREA_CITIES = ['Wellington', 'Porirua', 'Hutt Valley', 'Upper Hutt', 'Kāpiti'];
 
+// Some events genuinely affect Wairarapa-bound travel (the Remutaka
+// Hill route in particular) but get tagged region=WELLINGTON since
+// that's where the road starts. Catch those by also checking for
+// Wairarapa town names or the pass itself in the event's own text.
+const WAIRARAPA_KEYWORDS = ['WAIRARAPA', 'FEATHERSTON', 'GREYTOWN', 'CARTERTON', 'MASTERTON', 'REMUTAKA', 'RIMUTAKA'];
+
 function normalizeRegion(name){
     return (name || '')
         .toUpperCase()
@@ -252,6 +258,7 @@ function findTrafficForCity(cityName, events){
 
         if(cityNorm === 'WAIRARAPA'){
             if(region === 'WAIRARAPA') return event;
+            if(region === 'WELLINGTON' && WAIRARAPA_KEYWORDS.some(kw => haystack.includes(kw))) return event;
             continue;
         }
 
