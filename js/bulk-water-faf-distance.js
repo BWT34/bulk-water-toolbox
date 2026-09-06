@@ -2,7 +2,7 @@
     if (document.getElementById('bwt-faf-distance')) return;
 
     // ---- Config ----
-    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
     const START_LEGEND_MATCH = /start location/i;
     const END_LABEL_TEXT = 'Address'; // single-line field, matched by label — not a fieldset
     const DISTANCE_LABEL_TEXT = 'Distance (KM)';
