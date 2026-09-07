@@ -2,7 +2,7 @@
     if (document.getElementById('bwt-faf-distance')) return;
 
     // ---- Config ----
-    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
+    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
     const START_LEGEND_MATCH = /start location/i;
     const END_LABEL_TEXT = 'Address'; // single-line field, matched by label — not a fieldset
     const DISTANCE_LABEL_TEXT = 'Distance (KM)';
@@ -49,12 +49,17 @@
 
     // ---- Find any field's actual input by its visible label text
     // (robust against CognitoForms renumbering internal field IDs) ----
+    function normalizeLabelText(text) {
+        return (text || '').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+    }
+
     function findInputByLabelText(labelText) {
 
         const labels = document.querySelectorAll('label.cog-label');
+        const target = normalizeLabelText(labelText);
 
         for (const label of labels) {
-            if (label.textContent.trim().toLowerCase() === labelText.toLowerCase()) {
+            if (normalizeLabelText(label.textContent) === target) {
                 const forId = label.getAttribute('for');
                 if (forId) {
                     const input = document.getElementById(forId);
@@ -134,6 +139,7 @@
             if (!distanceInput) {
                 showStatus('Distance field not found on page');
                 console.log('Could not find input for label:', DISTANCE_LABEL_TEXT);
+                console.log('Actual labels found on page:', Array.from(document.querySelectorAll('label.cog-label')).map(l => l.textContent.trim()));
                 return;
             }
 
