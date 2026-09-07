@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Service Delivery Sheet - Bulk Water Transport</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: -apple-system, Arial, sans-serif;
+    background: #f3f4f6;
+    padding: 80px 20px 20px 20px;
+    box-sizing: border-box;
+}
+
+.back-link {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100000;
+
+    padding: 8px 16px;
+
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 14px;
+
+    color: #08122f;
+    font-weight: 600;
+    text-decoration: none;
+
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.back-link:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+.form-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+}
+</style>
+</head>
+
+<body>
+
+<a class="back-link" href="secondary.html" onclick="if(window.history.length > 1){ history.back(); return false; }">← Back</a>
+
+<div class="form-wrap">
+<!-- CognitoForms seamless embed — renders the Daily Service Delivery
+     Sheet form directly here -->
+<script src="https://www.cognitoforms.com/f/seamless.js" data-key="x8kTpqMjnE6DLzGvDRt_qg" data-form="47"></script>
+</div>
+
+<!-- FAF distance calculator — reads Start Location and Address once
+     they appear above, calculates driving distance via Google, and
+     writes it into the Distance (KM) field -->
+<script src="js/bulk-water-faf-distance.js"></script>
+
+</body>
+</html>
