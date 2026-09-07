@@ -2,9 +2,9 @@
     if (document.getElementById('bwt-faf-distance')) return;
 
     // ---- Config ----
-    const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+    const API_KEY = 'AIzaSyDFW9ig9xCMn1UqViEN6yqCg-gzrl_YnYU';
     const START_LEGEND_MATCH = /start location/i;
-    const END_LEGEND_MATCH = /^address$/i; // exact match — avoids clashing with "Start Location"
+    const END_LABEL_TEXT = 'Address'; // single-line field, matched by label — not a fieldset
     const DISTANCE_LABEL_TEXT = 'Distance (KM)';
 
     // ---- Small status indicator (not a full route card — this one
@@ -64,6 +64,18 @@
         }
 
         return null;
+
+    }
+
+    function getEndAddress() {
+
+        const input = findInputByLabelText(END_LABEL_TEXT);
+        if (!input) return null;
+
+        const value = (input.value || '').trim();
+        if (!value) return null;
+
+        return value + ', New Zealand';
 
     }
 
@@ -147,7 +159,7 @@
         debounceTimer = setTimeout(() => {
 
             const start = getAddressFromFieldset(START_LEGEND_MATCH);
-            const end = getAddressFromFieldset(END_LEGEND_MATCH);
+            const end = getEndAddress();
 
             if (!start || !end) return;
             if (start === lastStart && end === lastEnd) return;
@@ -183,17 +195,32 @@
 
     }
 
+    function attachListenerToLabeledInput(labelText) {
+
+        const input = findInputByLabelText(labelText);
+        if (!input) return false;
+
+        input.addEventListener('input', handleAddressChange);
+        input.addEventListener('blur', handleAddressChange);
+
+        return true;
+
+    }
+
     function watchForFields() {
 
         const startFound = attachListenersToFieldset(START_LEGEND_MATCH);
-        const endFound = attachListenersToFieldset(END_LEGEND_MATCH);
+        const endFound = attachListenerToLabeledInput(END_LABEL_TEXT);
 
         if (startFound && endFound) {
+            console.log('BWT FAF: both Start Location and Address fields found, watching for changes.');
             // Run once immediately in case fields are already filled
             // (e.g. Order Lookup already populated the address)
             handleAddressChange();
             return;
         }
+
+        console.log('BWT FAF: still waiting — Start Location found:', startFound, '| Address found:', endFound);
 
         // Not all fields rendered yet — CognitoForms is a SPA
         setTimeout(watchForFields, 500);
