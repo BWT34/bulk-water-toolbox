@@ -6,12 +6,28 @@
 <title>Daily Service Delivery Sheet - Bulk Water Transport</title>
 
 <style>
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background: #f3f4f6;
-    padding: 80px 20px 20px 20px;
+    background: #D7FDFF;
+    padding: 80px 40px 40px 40px;
     box-sizing: border-box;
+}
+
+/* Mobile — the wider desktop padding wastes too much of a narrow
+   screen, so shrink it right down here instead */
+@media (max-width: 768px) {
+    body {
+        padding: 100px 4px 20px 4px;
+    }
+    .form-wrap {
+        padding: 0;
+    }
 }
 
 .back-link {
@@ -41,7 +57,10 @@ body {
 
 .form-wrap {
     max-width: 900px;
+    width: 100%;
     margin: 0 auto;
+    padding: 0 20px;
+    box-sizing: border-box;
 }
 </style>
 </head>
@@ -59,7 +78,7 @@ body {
 <!-- FAF distance calculator — reads Start Location and Address once
      they appear above, calculates driving distance via Google, and
      writes it into the Distance (KM) field -->
-<script src="js/bulk-water-faf-distance.js"></script>
+<script src="js/bulk-water-faf-distance.js?v=3"></script>
 
 </body>
 </html>
