@@ -1,1 +1,7 @@
-{"enabled":true,"version":38,"title":"📢 Operations Notice","message":"📢 Reminder: Please take a moment to review the latest Toolbox Meeting, dated the 02/09/2026 and complete your sign-off. Keeping up to date with Toolbox meetings helps ensure everyone stays informed and safe."}
+{"enabled":true,"version":39,"title":"📢 Operations Notice","message":"📢 Reminder: Please take a moment to review the latest Toolbox Meeting, dated the 15/09/2026 and complete your sign-off. Keeping up to date with Toolbox meetings helps ensure everyone stays informed and safe.
+
+
+or (TransporterModeOnly != true and TruckIDLookup.TTKey = true and TTKey2 != "Yes")
+or (TransporterModeOnly != true and TruckIDLookup.SwipeCard = true and SwipeCards2 != "Yes")
+
+"}
