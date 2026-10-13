@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartage Quote Estimator</title>
+<style>
+  :root {
+    --bg: #f1f5f9; --card: #ffffff; --text: #0f172a; --muted: #64748b;
+    --accent: #1d4ed8; --accent-text: #ffffff; --border: #e2e8f0;
+    --warn-bg: #fef9c3; --warn-text: #854d0e;
+    --bad-bg: #fee2e2; --bad-text: #991b1b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220; --card: #111a2e; --text: #e5e7eb; --muted: #94a3b8;
+      --accent: #3b82f6; --accent-text: #ffffff; --border: #22304d;
+      --warn-bg: #3a2f0b; --warn-text: #fde68a;
+      --bad-bg: #3b1414; --bad-text: #fecaca;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Segoe UI", Arial, sans-serif; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  input[type=text] { width: 100%; font-size: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+  button { margin-top: 12px; width: 100%; font-size: 16px; font-weight: 600; padding: 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-text); cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  #result { margin-top: 16px; display: none; }
+  .rate { font-size: 44px; font-weight: 300; line-height: 1.1; }
+  .rate small { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .row span:first-child { color: var(--muted); }
+  .note { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+  .note.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .note.bad { background: var(--bad-bg); color: var(--bad-text); }
+  .foot { color: var(--muted); font-size: 11px; margin-top: 14px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cartage Quote Estimator</h1>
+  <p class="sub">Indicative cartage rate from the yard at 34 Montgomery Crescent, based on round-trip road distance.</p>
+
+  <div class="card">
+    <label for="addr">Delivery address, or suburb / town</label>
+    <input id="addr" type="text" autocomplete="off" placeholder="e.g. 25 Example Rd, Mangaroa  or  Whitemans Valley">
+    <div class="hint">A street address gives the best figure. A suburb alone is measured to the centre of that area.</div>
+    <button id="go" disabled>Loading maps…</button>
+
+    <div id="result">
+      <div class="rate" id="rateText"></div>
+      <div class="row"><span>Round trip</span><span id="rtKm"></span></div>
+      <div class="row"><span>Distance band</span><span id="bandText"></span></div>
+      <div class="row"><span>Priced from</span><span id="basedOn"></span></div>
+      <div id="notes"></div>
+    </div>
+  </div>
+
+  <div class="foot">Indicative only &ndash; the final price is confirmed on the order. Rates per the Rural Water Delivery cartage schedule dated 12 Oct 2026.</div>
+</div>
+
+<script>
+(function () {
+  // ---- Config ----
+  const API_KEY = ''; // <-- paste the current restricted key (must allow this page's domain)
+  const DEPOT = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+  const RATE_UNIT = '';  // e.g. 'per load' once confirmed (shown beside the rate)
+  const RATE_NOTE = '';  // e.g. '+ GST' or 'incl. GST' once confirmed
+  const EDGE_MARGIN_KM = 2; // warn when within this distance of a band edge
+
+  // Round-trip km upper limit -> rate. Matches the 12 Oct 2026 schedule.
+  const BANDS = [
+    { max: 10,  rate: 3.70 },
+    { max: 20,  rate: 7.50 },
+    { max: 30,  rate: 11.00 },
+    { max: 40,  rate: 15.00 },
+    { max: 50,  rate: 18.50 },
+    { max: 60,  rate: 22.00 },
+    { max: 70,  rate: 26.00 },
+    { max: 80,  rate: 30.00 },
+    { max: 90,  rate: 33.50 },
+    { max: 100, rate: 37.00 }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const input = $('addr'), go = $('go'), result = $('result'), notes = $('notes');
+  const money = (n) => '$' + n.toFixed(2);
+
+  function bandIndex(rtKm) {
+    for (let i = 0; i < BANDS.length; i++) if (rtKm <= BANDS[i].max) return i;
+    return -1; // outside the schedule
+  }
+
+  function bandLabel(i) {
+    const lo = i === 0 ? 0 : BANDS[i - 1].max;
+    return i === 0 ? 'Up to ' + BANDS[0].max + ' km' : lo + '–' + BANDS[i].max + ' km';
+  }
+
+  function addNote(text, kind) {
+    const d = document.createElement('div');
+    d.className = 'note ' + kind;
+    d.textContent = text;
+    notes.appendChild(d);
+  }
+
+  function showError(msg) {
+    result.style.display = 'block';
+    $('rateText').textContent = '';
+    $('rtKm').textContent = $('bandText').textContent = $('basedOn').textContent = '';
+    notes.innerHTML = '';
+    addNote(msg, 'bad');
+  }
+
+  function showQuote(rtKm, typed) {
+    result.style.display = 'block';
+    notes.innerHTML = '';
+    $('rtKm').textContent = rtKm.toFixed(1) + ' km';
+    $('basedOn').textContent = typed;
+
+    const i = bandIndex(rtKm);
+    if (i === -1) {
+      $('rateText').textContent = '';
+      $('bandText').textContent = 'Over ' + BANDS[BANDS.length - 1].max + ' km';
+      addNote('Outside the rate schedule (over ' + BANDS[BANDS.length - 1].max + ' km round trip). Quote this one manually.', 'bad');
+      return;
+    }
+
+    const rateEl = $('rateText');
+    rateEl.textContent = money(BANDS[i].rate);
+    if (RATE_UNIT || RATE_NOTE) {
+      const s = document.createElement('small');
+      s.textContent = [RATE_UNIT, RATE_NOTE].filter(Boolean).join(' ');
+      rateEl.appendChild(s);
+    }
+    $('bandText').textContent = bandLabel(i);
+
+    // Close to a band edge? Google's road distance can differ slightly from the
+    // schedule's, so flag it rather than quoting with false confidence.
+    const lower = i === 0 ? null : BANDS[i - 1].max;
+    const upper = BANDS[i].max;
+    if (lower !== null && rtKm - lower <= EDGE_MARGIN_KM) {
+      addNote('Close to the ' + lower + ' km line – the rate could be ' + money(BANDS[i - 1].rate) + ' instead. Confirm on the order.', 'warn');
+    } else if (upper - rtKm <= EDGE_MARGIN_KM) {
+      const next = BANDS[i + 1];
+      addNote('Close to the ' + upper + ' km line – ' + (next ? 'the rate could be ' + money(next.rate) + ' instead.' : 'this may fall outside the schedule.') + ' Confirm on the order.', 'warn');
+    }
+
+    if (!/\d/.test(typed)) {
+      addNote('Area only – measured to the centre of that area, so this is approximate. Get the street address for a firmer figure.', 'warn');
+    }
+  }
+
+  function calculate() {
+    const typed = input.value.trim();
+    if (!typed) { input.focus(); return; }
+
+    go.disabled = true;
+    go.textContent = 'Calculating…';
+
+    new google.maps.DistanceMatrixService().getDistanceMatrix({
+      origins: [DEPOT],
+      destinations: [/new zealand/i.test(typed) ? typed : typed + ', New Zealand'],
+      travelMode: 'DRIVING',
+      unitSystem: google.maps.UnitSystem.METRIC
+    }, (response, status) => {
+      go.disabled = false;
+      go.textContent = 'Get estimate';
+
+      if (status !== 'OK') {
+        showError('Google could not calculate this (' + status + '). If it keeps happening, check the API key and its allowed websites.');
+        return;
+      }
+      const el = response.rows[0].elements[0];
+      if (el.status !== 'OK') {
+        showError("Couldn't find that address. Try adding the suburb or town.");
+        return;
+      }
+      showQuote((el.distance.value / 1000) * 2, typed);
+    });
+  }
+
+  go.addEventListener('click', calculate);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculate(); });
+
+  // Google calls this if the key is rejected (expired, restricted, billing off)
+  window.gm_authFailure = function () {
+    go.disabled = true;
+    go.textContent = 'Maps key problem';
+    showError('Google rejected the API key for this page. Check the key and that this website is in its allowed list.');
+  };
+
+  window.bwtQuoteMapsReady = function () {
+    go.disabled = false;
+    go.textContent = 'Get estimate';
+  };
+
+  if (!API_KEY) {
+    go.textContent = 'API key not set';
+    showError('No API key has been added to this page yet.');
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(API_KEY) + '&callback=bwtQuoteMapsReady';
+    s.async = true;
+    document.head.appendChild(s);
+  }
+})();
+</script>
+</body>
+</html>
