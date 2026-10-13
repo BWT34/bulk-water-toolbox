@@ -27,18 +27,22 @@
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
   input[type=text] { width: 100%; font-size: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+  /* Google's address suggestion box */
+  #addrAC { display: block; width: 100%; font-size: 16px; font-family: inherit; border-radius: 8px; border: 1px solid var(--border); }
   button { margin-top: 12px; width: 100%; font-size: 16px; font-weight: 600; padding: 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-text); cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
   #result { margin-top: 16px; display: none; }
   .rate { font-size: 44px; font-weight: 300; line-height: 1.1; }
   .rate small { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 6px; }
-  .row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
-  .row span:first-child { color: var(--muted); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .row span:first-child { color: var(--muted); white-space: nowrap; }
+  .row span:last-child { text-align: right; }
   .note { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
   .note.warn { background: var(--warn-bg); color: var(--warn-text); }
   .note.bad { background: var(--bad-bg); color: var(--bad-text); }
   .foot { color: var(--muted); font-size: 11px; margin-top: 14px; text-align: center; }
+  #orderBtn { display: none; margin-top: 14px; text-align: center; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px; border-radius: 8px; border: 2px solid var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -48,8 +52,10 @@
 
   <div class="card">
     <label for="addr">Delivery address, or suburb / town</label>
-    <input id="addr" type="text" autocomplete="off" placeholder="e.g. 25 Example Rd, Mangaroa  or  Whitemans Valley">
-    <div class="hint">A street address gives the best figure. A suburb alone is measured to the centre of that area.</div>
+    <div id="addrBox">
+      <input id="addr" type="text" autocomplete="off" placeholder="e.g. 25 Example Rd, Mangaroa  or  Whitemans Valley">
+    </div>
+    <div class="hint" id="addrHint">A street address gives the best figure. A suburb alone is measured to the centre of that area.</div>
     <button id="go" disabled>Loading maps…</button>
 
     <div id="result">
@@ -58,6 +64,7 @@
       <div class="row"><span>Distance band</span><span id="bandText"></span></div>
       <div class="row"><span>Priced from</span><span id="basedOn"></span></div>
       <div id="notes"></div>
+      <a id="orderBtn" target="_blank" rel="noopener">Start order with this address</a>
     </div>
   </div>
 
@@ -72,6 +79,13 @@
   const RATE_UNIT = '';  // e.g. 'per load' once confirmed (shown beside the rate)
   const RATE_NOTE = '';  // e.g. '+ GST' or 'incl. GST' once confirmed
   const EDGE_MARGIN_KM = 2; // warn when within this distance of a band edge
+
+  // ---- "Start order" button (pre-fills the Orders form) ----
+  // Leave ORDER_FORM_URL empty to hide the button.
+  const ORDER_FORM_URL = '';          // public link to the Orders form, e.g. https://www.cognitoforms.com/BulkWaterTransportLtd/YourFormName
+  const ADDRESS_FIELD_NAME = 'DeliveryAddress'; // internal name of the Delivery Address field (case-sensitive)
+  const DISTANCE_FIELD_NAME = '';     // internal name of a plain number field on the Orders form for round-trip km; leave empty to skip
+  // Internal names: form builder > Settings > Developer Mode > "Customize Field Names?" shows them under each field.
 
   // Round-trip km upper limit -> rate. Matches the 12 Oct 2026 schedule.
   const BANDS = [
@@ -88,8 +102,15 @@
   ];
 
   const $ = (id) => document.getElementById(id);
-  const input = $('addr'), go = $('go'), result = $('result'), notes = $('notes');
+  const input = $('addr'), box = $('addrBox'), hint = $('addrHint'), go = $('go'), result = $('result'), notes = $('notes');
   const money = (n) => '$' + n.toFixed(2);
+  const HINT_PLAIN = 'A street address gives the best figure. A suburb alone is measured to the centre of that area.';
+  const HINT_SUGGEST = 'Start typing and pick the address from the list. A suburb or town alone also works, but is only approximate.';
+
+  let ac = null;       // Google's address suggestion element, once available
+  let selected = null; // the suggestion the user picked: { id, formatted, components }
+
+  function getTyped() { return (ac ? (ac.value || '') : input.value).trim(); }
 
   function bandIndex(rtKm) {
     for (let i = 0; i < BANDS.length; i++) if (rtKm <= BANDS[i].max) return i;
@@ -108,7 +129,57 @@
     notes.appendChild(d);
   }
 
+  // ---- Address parts for the Orders form ----
+  // From a suggestion Google gave us (components are reliable)
+  function addressFromComponents(components, areaOnly) {
+    const get = (type) => {
+      const c = (components || []).find((x) => (x.types || []).indexOf(type) !== -1);
+      return c ? (c.longText || c.long_name || '') : '';
+    };
+    const street = [get('street_number'), get('route')].filter(Boolean).join(' ');
+    const unit = get('subpremise');
+    return {
+      Line1: areaOnly ? '' : (unit && street ? unit + '/' + street : street),
+      Line2: get('sublocality_level_1') || get('sublocality') || get('neighborhood'),
+      City: get('locality') || get('postal_town') || get('administrative_area_level_2'),
+      PostalCode: get('postal_code'),
+      Country: 'New Zealand'
+    };
+  }
+
+  // From plain typed text: split Google's formatted NZ address
+  // ("25 Example Rd, Mangaroa, Upper Hutt 5018, New Zealand")
+  function parseAddress(formatted, areaOnly) {
+    const parts = String(formatted || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length && /^new zealand$/i.test(parts[parts.length - 1])) parts.pop();
+    let postal = '';
+    if (parts.length) {
+      const m = parts[parts.length - 1].match(/^(.*?)\s*(\d{4})$/);
+      if (m) { postal = m[2]; parts[parts.length - 1] = m[1]; }
+    }
+    while (parts.length && !parts[parts.length - 1]) parts.pop();
+    let line1 = '', line2 = '', city = '';
+    if (parts.length === 1) { city = parts[0]; }
+    else if (parts.length >= 2) {
+      city = parts[parts.length - 1];
+      line1 = areaOnly ? '' : parts[0];
+      line2 = parts.slice(areaOnly ? 0 : 1, -1).join(', ');
+    }
+    return { Line1: line1, Line2: line2, City: city, PostalCode: postal, Country: 'New Zealand' };
+  }
+
+  function setOrderLink(addr, rtKm) {
+    const btn = $('orderBtn');
+    if (!ORDER_FORM_URL) { btn.style.display = 'none'; return; }
+    const entry = {};
+    entry[ADDRESS_FIELD_NAME] = addr;
+    if (DISTANCE_FIELD_NAME) entry[DISTANCE_FIELD_NAME] = Number(rtKm.toFixed(2));
+    btn.href = ORDER_FORM_URL + (ORDER_FORM_URL.indexOf('?') === -1 ? '?' : '&') + 'entry=' + encodeURIComponent(JSON.stringify(entry));
+    btn.style.display = 'block';
+  }
+
   function showError(msg) {
+    $('orderBtn').style.display = 'none';
     result.style.display = 'block';
     $('rateText').textContent = '';
     $('rtKm').textContent = $('bandText').textContent = $('basedOn').textContent = '';
@@ -116,11 +187,12 @@
     addNote(msg, 'bad');
   }
 
-  function showQuote(rtKm, typed) {
+  function showQuote(rtKm, label, addr, areaOnly) {
     result.style.display = 'block';
     notes.innerHTML = '';
+    setOrderLink(addr, rtKm);
     $('rtKm').textContent = rtKm.toFixed(1) + ' km';
-    $('basedOn').textContent = typed;
+    $('basedOn').textContent = label;
 
     const i = bandIndex(rtKm);
     if (i === -1) {
@@ -150,42 +222,109 @@
       addNote('Close to the ' + upper + ' km line – ' + (next ? 'the rate could be ' + money(next.rate) + ' instead.' : 'this may fall outside the schedule.') + ' Confirm on the order.', 'warn');
     }
 
-    if (!/\d/.test(typed)) {
+    if (areaOnly) {
       addNote('Area only – measured to the centre of that area, so this is approximate. Get the street address for a firmer figure.', 'warn');
     }
   }
 
   function calculate() {
-    const typed = input.value.trim();
-    if (!typed) { input.focus(); return; }
+    const sel = selected; // the suggestion picked, if the text hasn't been changed since
+    const typed = sel ? sel.formatted : getTyped();
+    if (!typed) { (ac || input).focus(); return; }
+
+    const areaOnly = sel
+      ? !sel.components.some((c) => (c.types || []).some((t) => t === 'street_number' || t === 'route'))
+      : !/\d/.test(typed);
+    const textDest = /new zealand/i.test(typed) ? typed : typed + ', New Zealand';
 
     go.disabled = true;
     go.textContent = 'Calculating…';
+    const done = () => { go.disabled = false; go.textContent = 'Get estimate'; };
 
-    new google.maps.DistanceMatrixService().getDistanceMatrix({
-      origins: [DEPOT],
-      destinations: [/new zealand/i.test(typed) ? typed : typed + ', New Zealand'],
-      travelMode: 'DRIVING',
-      unitSystem: google.maps.UnitSystem.METRIC
-    }, (response, status) => {
-      go.disabled = false;
-      go.textContent = 'Get estimate';
+    // A picked suggestion is looked up by its exact place; if Google can't
+    // route to that, retry once using the address text.
+    const run = (destination, canRetry) => {
+      new google.maps.DistanceMatrixService().getDistanceMatrix({
+        origins: [DEPOT],
+        destinations: [destination],
+        travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.METRIC
+      }, (response, status) => {
+        const el = status === 'OK' ? response.rows[0].elements[0] : null;
 
-      if (status !== 'OK') {
-        showError('Google could not calculate this (' + status + '). If it keeps happening, check the API key and its allowed websites.');
-        return;
-      }
-      const el = response.rows[0].elements[0];
-      if (el.status !== 'OK') {
-        showError("Couldn't find that address. Try adding the suburb or town.");
-        return;
-      }
-      showQuote((el.distance.value / 1000) * 2, typed);
-    });
+        if (canRetry && (!el || el.status !== 'OK')) { run(textDest, false); return; }
+
+        done();
+        if (status !== 'OK') {
+          showError('Google could not calculate this (' + status + '). If it keeps happening, check the API key and its allowed websites.');
+          return;
+        }
+        if (el.status !== 'OK') {
+          showError("Couldn't find that address. Try adding the suburb or town.");
+          return;
+        }
+        const addr = sel
+          ? addressFromComponents(sel.components, areaOnly)
+          : parseAddress((response.destinationAddresses || [])[0], areaOnly);
+        showQuote((el.distance.value / 1000) * 2, typed, addr, areaOnly);
+      });
+    };
+
+    run(sel && sel.id ? { placeId: sel.id } : textDest, !!(sel && sel.id));
   }
 
   go.addEventListener('click', calculate);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculate(); });
+
+  // ---- Address suggestions (Google Places Autocomplete) ----
+  // Needs "Places API (New)" enabled in the project and allowed on the key.
+  // If anything goes wrong the page quietly stays a plain text box.
+  function fallbackToPlainInput(reason) {
+    console.log('BWT quote: address suggestions off -', reason);
+    if (ac) { ac.remove(); ac = null; }
+    selected = null;
+    input.style.display = '';
+    hint.textContent = 'Address suggestions are unavailable, so type the full address (street, suburb, town). ' + HINT_PLAIN;
+  }
+
+  async function initAutocomplete() {
+    try {
+      let lib = null;
+      if (google.maps.importLibrary) lib = await google.maps.importLibrary('places');
+      const Element = (lib && lib.PlaceAutocompleteElement) || (google.maps.places && google.maps.places.PlaceAutocompleteElement);
+      if (!Element) throw new Error('PlaceAutocompleteElement not available');
+
+      const el = new Element();
+      el.id = 'addrAC';
+      el.includedRegionCodes = ['nz'];
+      el.placeholder = 'Start typing the delivery address…';
+
+      el.addEventListener('input', () => { selected = null; }); // typing again clears the picked suggestion
+      el.addEventListener('gmp-error', () => fallbackToPlainInput('Google denied the request'));
+      el.addEventListener('gmp-select', async (ev) => {
+        try {
+          const place = ev.placePrediction.toPlace();
+          await place.fetchFields({ fields: ['formattedAddress', 'addressComponents'] });
+          selected = {
+            id: place.id,
+            formatted: place.formattedAddress || '',
+            components: place.addressComponents || []
+          };
+          calculate();
+        } catch (err) {
+          console.log('BWT quote: could not read the picked address', err);
+          selected = null;
+        }
+      });
+
+      input.style.display = 'none';
+      box.appendChild(el);
+      ac = el;
+      hint.textContent = HINT_SUGGEST;
+    } catch (err) {
+      fallbackToPlainInput(err && err.message ? err.message : err);
+    }
+  }
 
   // Google calls this if the key is rejected (expired, restricted, billing off)
   window.gm_authFailure = function () {
@@ -197,6 +336,7 @@
   window.bwtQuoteMapsReady = function () {
     go.disabled = false;
     go.textContent = 'Get estimate';
+    initAutocomplete();
   };
 
   if (!API_KEY) {
