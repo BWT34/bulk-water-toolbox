@@ -89,6 +89,7 @@
   const ORDER_FORM_URL = 'https://bwt34.github.io/bulk-water-toolbox/delivery-order.html'; // the page the Orders form is on
   const ADDRESS_FIELD_NAME = 'DeliveryAddress'; // internal name of the Delivery Address field (case-sensitive)
   const DISTANCE_FIELD_NAME = '';     // internal name of a plain number field on the Orders form for round-trip km; leave empty to skip
+  const RATE_FIELD_NAME = 'FAFEstimate'; // internal name of the FAF Estimate number field (gets the rate); leave empty to skip
   // Internal names: form builder > Settings > Developer Mode > "Customize Field Names?" shows them under each field.
 
   // Round-trip km upper limit -> rate. Matches the 12 Oct 2026 schedule.
@@ -118,6 +119,7 @@
   })();
   if (EMBEDDED) document.body.classList.add('embed');
   let lastAddr = null; // address parts from the latest quote
+  let lastRate = null; // band rate from the latest quote (null when outside the schedule)
 
   let ac = null;       // Google's address suggestion element, once available
   let selected = null; // the suggestion the user picked: { id, formatted, components }
@@ -183,14 +185,16 @@
   $('orderBtn').addEventListener('click', (e) => {
     if (!EMBEDDED) return;               // normal page: the link just opens the order page
     e.preventDefault();
-    if (lastAddr) window.parent.postMessage({ type: 'bwt-quote-address', address: lastAddr }, location.origin);
+    if (lastAddr) window.parent.postMessage({ type: 'bwt-quote-address', address: lastAddr, rate: lastRate }, location.origin);
   });
 
   function setOrderLink(addr, rtKm) {
     const btn = $('orderBtn');
     lastAddr = addr;
+    const bi = bandIndex(rtKm);
+    lastRate = bi === -1 ? null : BANDS[bi].rate;
     if (EMBEDDED) {
-      btn.textContent = 'Use this address on the order';
+      btn.textContent = lastRate === null ? 'Use this address on the order' : 'Use this address and estimate on the order';
       btn.removeAttribute('target');
       btn.setAttribute('href', '#');
       btn.style.display = 'block';
@@ -200,6 +204,7 @@
     const entry = {};
     entry[ADDRESS_FIELD_NAME] = addr;
     if (DISTANCE_FIELD_NAME) entry[DISTANCE_FIELD_NAME] = Number(rtKm.toFixed(2));
+    if (RATE_FIELD_NAME && lastRate !== null) entry[RATE_FIELD_NAME] = lastRate;
     btn.href = ORDER_FORM_URL + (ORDER_FORM_URL.indexOf('?') === -1 ? '?' : '&') + 'entry=' + encodeURIComponent(JSON.stringify(entry));
     btn.style.display = 'block';
   }
