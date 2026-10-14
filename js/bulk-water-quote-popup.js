@@ -114,18 +114,46 @@
     // ---- Fill the FAF Estimate number field (found by its label, like the
     // other scripts do, since Cognito renumbers its internal ids) ----
     function normalizeLabelText(text) {
-        return (text || '').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+        return (text || '').replace(/\s+/g, ' ').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+    }
+
+    const FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea';
+
+    function inputForLabel(label) {
+        // 1. the label's own "for" link
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        // 2. otherwise the first input in the label's own field block
+        //    (stop climbing before we reach a block holding other labels)
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
     }
 
     function findInputByLabelText(labelText) {
         const target = normalizeLabelText(labelText);
-        for (const label of document.querySelectorAll('label.cog-label')) {
-            if (normalizeLabelText(label.textContent) === target) {
-                const forId = label.getAttribute('for');
-                const input = forId ? document.getElementById(forId) : null;
-                if (input) return input;
+        const labels = Array.from(document.querySelectorAll('label.cog-label, label'));
+        // exact match first, then "starts with" (copes with extra text such as "Required")
+        for (const exact of [true, false]) {
+            for (const label of labels) {
+                const t = normalizeLabelText(label.textContent);
+                if (exact ? t === target : t.indexOf(target) === 0) {
+                    const input = inputForLabel(label);
+                    if (input) return input;
+                }
             }
         }
+        console.log('BWT quote: no input found for label "' + labelText + '". Labels on page:',
+            labels.map((l) => JSON.stringify(l.textContent.trim())));
         return null;
     }
 
