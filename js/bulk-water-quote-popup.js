@@ -1,5 +1,7 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
+    const SCRIPT_VERSION = 'v3';
+    console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
     // This script lives in the js folder; the quote page sits one level up,
@@ -184,7 +186,7 @@
         if (rate === null) {
             toast('Address added. Outside the rate schedule, so the ' + RATE_LABEL + ' is blank - quote manually', true);
         } else if (!rateSet) {
-            toast('Address added, but the "' + RATE_LABEL + '" field was not found on this page', true);
+            toast('Address added, but the "' + RATE_LABEL + '" field was not found on this page (script ' + SCRIPT_VERSION + ')', true);
         } else {
             toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
