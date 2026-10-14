@@ -11,6 +11,7 @@
         ? new URL('../' + QUOTE_PAGE, SCRIPT_SRC).href   // js/ -> one folder up
         : new URL(QUOTE_PAGE, location.href).href;       // fallback: same folder as the page
     const ADDRESS_LEGEND_MATCH = /delivery address/i; // the Delivery Address field on the order form
+    const RATE_LABEL = 'FAF Estimate';                // label of the number field that receives the quoted rate
 
     // ---- Button + pop-up ----
     const btn = document.createElement('button');
@@ -110,17 +111,54 @@
         return true;
     }
 
-    // ---- The quote page sends the chosen address back here ----
+    // ---- Fill the FAF Estimate number field (found by its label, like the
+    // other scripts do, since Cognito renumbers its internal ids) ----
+    function normalizeLabelText(text) {
+        return (text || '').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+    }
+
+    function findInputByLabelText(labelText) {
+        const target = normalizeLabelText(labelText);
+        for (const label of document.querySelectorAll('label.cog-label')) {
+            if (normalizeLabelText(label.textContent) === target) {
+                const forId = label.getAttribute('for');
+                const input = forId ? document.getElementById(forId) : null;
+                if (input) return input;
+            }
+        }
+        return null;
+    }
+
+    // rate is a number, or null when the address is outside the rate schedule.
+    // Returns true if the field was found and set.
+    function fillRate(rate) {
+        const input = findInputByLabelText(RATE_LABEL);
+        if (!input) return false;
+        setVueInputValue(input, rate === null ? '' : rate.toFixed(2));
+        return true;
+    }
+
+    // ---- The quote page sends the chosen address (and rate) back here ----
     window.addEventListener('message', (e) => {
         if (e.origin !== location.origin) return; // only our own quote page
         const d = e.data;
         if (!d || d.type !== 'bwt-quote-address' || !d.address) return;
 
-        if (fillDeliveryAddress(d.address)) {
-            closeQuote();
-            toast('Delivery address added to the order');
-        } else {
+        const rate = (typeof d.rate === 'number' && isFinite(d.rate)) ? d.rate : null;
+
+        if (!fillDeliveryAddress(d.address)) {
             toast("Couldn't find the Delivery Address fields on this page", true);
+            return;
+        }
+        const rateSet = fillRate(rate);
+        closeQuote();
+
+        if (rate === null) {
+            toast('Address added. Outside the rate schedule, so the ' + RATE_LABEL + ' is blank - quote manually', true);
+        } else if (!rateSet) {
+            toast('Address added, but the "' + RATE_LABEL + '" field was not found on this page', true);
+        } else {
+            toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
 
