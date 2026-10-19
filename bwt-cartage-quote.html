@@ -43,9 +43,13 @@
   .note.bad { background: var(--bad-bg); color: var(--bad-text); }
   .foot { color: var(--muted); font-size: 11px; margin-top: 14px; text-align: center; }
   #orderBtn { display: none; margin-top: 14px; text-align: center; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px; border-radius: 8px; border: 2px solid var(--accent); color: var(--accent); cursor: pointer; }
+  #mapBox { display: none; margin-top: 12px; }
+  #map { height: 280px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); }
+  .ringlabel { background: #fff; color: #0b3d6b; font: 600 10px "Segoe UI", Arial, sans-serif; padding: 0 4px; border-radius: 7px; border: 1px solid #0b5fa8; white-space: nowrap; }
   /* Compact layout when shown inside the order page pop-up */
   .embed .sub, .embed .foot { display: none; }
   .embed .wrap { padding: 10px; }
+  .embed #map { height: 210px; }
   .embed h1 { font-size: 17px; margin: 0 0 10px; padding-right: 36px; }
 </style>
 </head>
@@ -65,9 +69,14 @@
     <div id="result">
       <div class="rate" id="rateText"></div>
       <div class="row"><span>Round trip</span><span id="rtKm"></span></div>
+      <div class="row" id="slRow" style="display:none"><span>Straight line</span><span id="slKm"></span></div>
       <div class="row"><span>Distance band</span><span id="bandText"></span></div>
       <div class="row"><span>Priced from</span><span id="basedOn"></span></div>
       <div id="notes"></div>
+      <div id="mapBox">
+        <div id="map" role="img" aria-label="Map showing the delivery address against the delivery rings around the depot"></div>
+        <div class="hint" id="mapHint"></div>
+      </div>
       <a id="orderBtn" href="#" target="bwtOrder">Start order with this address</a>
     </div>
   </div>
@@ -83,6 +92,11 @@
   const RATE_UNIT = '';  // e.g. 'per load' once confirmed (shown beside the rate)
   const RATE_NOTE = '';  // e.g. '+ GST' or 'incl. GST' once confirmed
   const EDGE_MARGIN_KM = 2; // warn when within this distance of a band edge
+
+  // ---- Map with delivery rings ----
+  const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 }; // used if Google can't look up the depot address
+  const RING_STEP_KM = 10;
+  const RING_MAX_KM = 100;
 
   // ---- "Start order" button (pre-fills the Orders form) ----
   // Leave ORDER_FORM_URL empty to hide the button.
@@ -143,6 +157,17 @@
     notes.appendChild(d);
   }
 
+  // ---- Towns the Orders form's "Water Cost Rate" calculation recognises (UPPER CASE) ----
+  const RATE_TOWNS = ['UPPER HUTT', 'LOWER HUTT', 'PORIRUA', 'WAINUIOMATA', 'KAPITI', 'PALMERSTON NORTH',
+    'FEILDING', 'OTAKI', 'FEATHERSTON', 'GREYTOWN', 'MARTINBOROUGH', 'WAIKANAE', 'LEVIN', 'WELLINGTON',
+    'CARTERTON', 'MASTERTON', 'SOUTH WAIRARAPA'];
+  // Council district (lower case, as Google names it) -> town name to put in City
+  const DISTRICT_TOWN = {
+    'carterton district': 'Carterton',
+    'masterton district': 'Masterton',
+    'south wairarapa district': 'South Wairarapa'
+  };
+
   // ---- Address parts for the Orders form ----
   // From a suggestion Google gave us (components are reliable)
   function addressFromComponents(components, areaOnly) {
@@ -152,10 +177,25 @@
     };
     const street = [get('street_number'), get('route')].filter(Boolean).join(' ');
     const unit = get('subpremise');
+    let line2 = get('sublocality_level_1') || get('sublocality') || get('neighborhood');
+    let city = get('locality') || get('postal_town') || get('administrative_area_level_2');
+
+    // Rural spots come back with a tiny locality (e.g. "West Taratahi") that the
+    // Water Cost Rate list doesn't know. If the locality isn't a town on that list,
+    // use the council district's town instead and keep the locality in Line 2.
+    const cityUp = city.toUpperCase();
+    if (!RATE_TOWNS.some((t) => cityUp.indexOf(t) !== -1)) {
+      const town = DISTRICT_TOWN[get('administrative_area_level_2').toLowerCase()];
+      if (town) {
+        if (city && !line2) line2 = city;
+        city = town;
+      }
+    }
+
     return {
       Line1: areaOnly ? '' : (unit && street ? unit + '/' + street : street),
-      Line2: get('sublocality_level_1') || get('sublocality') || get('neighborhood'),
-      City: get('locality') || get('postal_town') || get('administrative_area_level_2'),
+      Line2: line2,
+      City: city,
       PostalCode: get('postal_code'),
       Country: 'New Zealand'
     };
@@ -215,12 +255,16 @@
     $('rateText').textContent = '';
     $('rtKm').textContent = $('bandText').textContent = $('basedOn').textContent = '';
     notes.innerHTML = '';
+    $('mapBox').style.display = 'none';
+    $('slRow').style.display = 'none';
+    mapToken++;
     addNote(msg, 'bad');
   }
 
   function showQuote(rtKm, label, addr, areaOnly) {
     result.style.display = 'block';
     notes.innerHTML = '';
+    $('slRow').style.display = 'none';
     setOrderLink(addr, rtKm);
     $('rtKm').textContent = rtKm.toFixed(1) + ' km';
     $('basedOn').textContent = label;
@@ -256,6 +300,105 @@
     if (areaOnly) {
       addNote('Area only – measured to the centre of that area, so this is approximate. Get the street address for a firmer figure.', 'warn');
     }
+  }
+
+  // ---- Map: rings every 10 km around the depot, plus the delivery address ----
+  let map = null, depotPos = null, pin = null, line = null, mapPromise = null, mapToken = 0;
+
+  function haversineKm(a, b) {
+    const rad = Math.PI / 180, R = 6371;
+    const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+    const h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function toLatLng(l) {
+    if (!l) return null;
+    const lat = typeof l.lat === 'function' ? l.lat() : l.lat;
+    const lng = typeof l.lng === 'function' ? l.lng() : l.lng;
+    return (isFinite(lat) && isFinite(lng)) ? { lat: lat, lng: lng } : null;
+  }
+
+  // Look an address up with Google's geocoder. Resolves null if that isn't available.
+  function geocode(address) {
+    return new Promise((resolve) => {
+      try {
+        const timer = setTimeout(() => resolve(null), 4000);
+        new google.maps.Geocoder().geocode({ address: address, region: 'NZ' }, (res, status) => {
+          clearTimeout(timer);
+          resolve(status === 'OK' && res && res[0] ? toLatLng(res[0].geometry.location) : null);
+        });
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  function ensureMap() {
+    if (!mapPromise) mapPromise = (async () => {
+      try {
+        depotPos = (await geocode(DEPOT)) || DEPOT_FALLBACK;
+        map = new google.maps.Map($('map'), {
+          center: depotPos, zoom: 9, gestureHandling: 'cooperative',
+          streetViewControl: false, fullscreenControl: false, mapTypeControl: false
+        });
+        new google.maps.Marker({
+          position: depotPos, map: map, title: 'Depot, 34 Montgomery Crescent',
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#475569', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
+        });
+        const kmPerDegLat = 111.32;
+        for (let km = RING_STEP_KM; km <= RING_MAX_KM; km += RING_STEP_KM) {
+          new google.maps.Circle({
+            map: map, center: depotPos, radius: km * 1000, clickable: false,
+            strokeColor: '#0b5fa8', strokeOpacity: .85, strokeWeight: km % 50 === 0 ? 2.5 : 1.5,
+            fillColor: '#0b5fa8', fillOpacity: km % 20 === 0 ? 0.07 : 0.025
+          });
+          new google.maps.Marker({
+            map: map, clickable: false,
+            position: { lat: depotPos.lat + km / kmPerDegLat, lng: depotPos.lng },
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+            label: { text: km + ' km', className: 'ringlabel', color: '#0b3d6b', fontSize: '10px', fontWeight: '600' }
+          });
+        }
+        return true;
+      } catch (e) {
+        console.log('BWT quote: map unavailable -', e && e.message ? e.message : e);
+        map = null;
+        return false;
+      }
+    })();
+    return mapPromise;
+  }
+
+  // destPromise resolves to { lat, lng } for the delivery address, or null if unknown
+  async function updateMap(destPromise) {
+    const token = ++mapToken;
+    const mapBox = $('mapBox');
+    mapBox.style.display = 'block'; // the map needs a visible box when it is first created
+    const both = await Promise.all([ensureMap(), destPromise]);
+    if (token !== mapToken) return; // a newer quote has taken over
+    if (!both[0]) { mapBox.style.display = 'none'; return; }
+    const dest = both[1];
+
+    if (pin) pin.setMap(null);
+    if (line) line.setMap(null);
+    pin = line = null;
+
+    let radiusKm = 20;
+    if (dest) {
+      const sl = haversineKm(depotPos, dest);
+      $('slKm').textContent = sl.toFixed(1) + ' km';
+      $('slRow').style.display = 'flex';
+      pin = new google.maps.Marker({ position: dest, map: map, title: 'Delivery address' });
+      line = new google.maps.Polyline({ path: [depotPos, dest], map: map, geodesic: true, strokeColor: '#d4351c', strokeOpacity: .9, strokeWeight: 2 });
+      radiusKm = Math.max(20, Math.ceil((sl + 3) / 10) * 10); // show the ring the address sits in
+      $('mapHint').textContent = 'Rings are straight-line distance from the depot, every ' + RING_STEP_KM + ' km. The price uses the road distance.';
+    } else {
+      $('slRow').style.display = 'none';
+      $('mapHint').textContent = "Couldn't place this address on the map. The rings show distance from the depot.";
+    }
+    const dLat = radiusKm / 111.32;
+    const dLng = radiusKm / (111.32 * Math.cos(depotPos.lat * Math.PI / 180));
+    map.fitBounds({ north: depotPos.lat + dLat, south: depotPos.lat - dLat, east: depotPos.lng + dLng, west: depotPos.lng - dLng }, 0);
   }
 
   function calculate() {
@@ -298,6 +441,7 @@
           ? addressFromComponents(sel.components, areaOnly)
           : parseAddress((response.destinationAddresses || [])[0], areaOnly);
         showQuote((el.distance.value / 1000) * 2, typed, addr, areaOnly);
+        updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : geocode(textDest));
       });
     };
 
@@ -335,11 +479,12 @@
       el.addEventListener('gmp-select', async (ev) => {
         try {
           const place = ev.placePrediction.toPlace();
-          await place.fetchFields({ fields: ['formattedAddress', 'addressComponents'] });
+          await place.fetchFields({ fields: ['formattedAddress', 'addressComponents', 'location'] });
           selected = {
             id: place.id,
             formatted: place.formattedAddress || '',
-            components: place.addressComponents || []
+            components: place.addressComponents || [],
+            location: place.location || null
           };
           calculate();
         } catch (err) {
