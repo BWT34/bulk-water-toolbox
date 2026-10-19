@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BWT Delivery Rings</title>
+<style>
+  :root {
+    --card: rgba(255,255,255,.94);
+    --ink: #10243a;
+    --muted: #4b6075;
+    --ring: #0b5fa8;
+    --depot: #d4351c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --card: rgba(16,28,42,.94); --ink: #e8f0f7; --muted: #9db2c6; }
+  }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background: #dfe7ee; }
+  #map { position: absolute; inset: 0; }
+  .card {
+    position: absolute; top: 12px; left: 12px; z-index: 5;
+    max-width: min(340px, calc(100% - 24px)); box-sizing: border-box;
+    background: var(--card); color: var(--ink);
+    padding: 12px 14px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,.3);
+  }
+  .card h1 { font-size: 16px; margin: 0 0 4px; }
+  .card p { font-size: 12px; line-height: 1.4; margin: 0; color: var(--muted); }
+  #msg { margin-top: 6px; color: #b3261e; font-weight: 600; }
+  .ringlabel {
+    background: #fff; color: #0b3d6b; font: 600 11px "Segoe UI", Arial, sans-serif;
+    padding: 1px 5px; border-radius: 8px; border: 1px solid #0b5fa8; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="map" role="img" aria-label="Map of the lower North Island with delivery rings every 10 km from the depot"></div>
+<div class="card">
+  <h1>Delivery rings from the depot</h1>
+  <p>34 Montgomery Crescent, Upper Hutt. Rings every 10 km out to 100 km. These are straight-line distances, so driving distance is longer.</p>
+  <p id="msg" hidden></p>
+</div>
+
+<script>
+  // ---- Config ----
+  const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk'; // paste the current restricted key before uploading
+  const DEPOT_ADDRESS = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+  // Used if the address lookup is unavailable (approximate, within about 1 km)
+  const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 };
+  const RING_STEP_KM = 10;
+  const RING_MAX_KM = 100;
+
+  const msg = document.getElementById('msg');
+  function showMsg(t) { msg.textContent = t; msg.hidden = false; }
+
+  window.gm_authFailure = function () {
+    showMsg('Google rejected the API key for this page. Check the key and its website restrictions.');
+  };
+
+  window.initRings = async function () {
+    const { Map, Circle } = await google.maps.importLibrary('maps');
+    const { Marker } = await google.maps.importLibrary('marker');
+
+    // Find the exact depot position; fall back to the built-in point
+    let centre = DEPOT_FALLBACK;
+    try {
+      const { Geocoder } = await google.maps.importLibrary('geocoding');
+      const found = await new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), 4000);
+        new Geocoder().geocode({ address: DEPOT_ADDRESS, region: 'NZ' }, (res, status) => {
+          clearTimeout(timer);
+          resolve(status === 'OK' && res && res[0] ? res[0].geometry.location : null);
+        });
+      });
+      if (found) centre = { lat: found.lat(), lng: found.lng() };
+    } catch (e) { /* keep the fallback point */ }
+
+    const map = new Map(document.getElementById('map'), {
+      center: centre, zoom: 8, mapTypeId: 'roadmap',
+      streetViewControl: false, fullscreenControl: true, mapTypeControl: true
+    });
+
+    new Marker({ position: centre, map, title: '34 Montgomery Crescent, Upper Hutt' ,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: '#d4351c', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+
+    const kmPerDegLat = 111.32;
+    let outer = null;
+    for (let km = RING_STEP_KM; km <= RING_MAX_KM; km += RING_STEP_KM) {
+      const ring = new Circle({
+        map, center: centre, radius: km * 1000,
+        strokeColor: '#0b5fa8', strokeOpacity: .85, strokeWeight: km % 50 === 0 ? 2.5 : 1.5,
+        fillColor: '#0b5fa8', fillOpacity: km % 20 === 0 ? 0.07 : 0.025,
+        clickable: false
+      });
+      if (km === RING_MAX_KM) outer = ring;
+      // label sitting on the ring, due north of the depot
+      new Marker({
+        map, clickable: false,
+        position: { lat: centre.lat + km / kmPerDegLat, lng: centre.lng },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+        label: { text: km + ' km', className: 'ringlabel', color: '#0b3d6b', fontSize: '11px', fontWeight: '600' }
+      });
+    }
+    if (outer) map.fitBounds(outer.getBounds(), 8);
+  };
+
+  if (!API_KEY) {
+    showMsg('Add the Google Maps API key to this page (API_KEY near the top of the script).');
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(API_KEY) +
+            '&callback=initRings&loading=async&v=weekly';
+    s.async = true;
+    s.onerror = () => showMsg('Could not load Google Maps.');
+    document.head.appendChild(s);
+  }
+</script>
+</body>
+</html>
