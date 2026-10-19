@@ -3,7 +3,7 @@
 
     // ---- Config ----
     const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk';
-    const ORIGIN = 'Upper Hutt, New Zealand';
+    const ORIGIN = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
 
     // ---- Responsive styling ----
@@ -148,7 +148,7 @@
         card.style.borderLeft = `4px solid ${statusColor}`;
 
         card.innerHTML = `
-            <div class="bwt-route-sub">🚚 Upper Hutt → </div>
+            <div class="bwt-route-sub">🚚 Depot → </div>
             <div class="bwt-route-toprow">
                 <div class="bwt-route-label">${addressLabel}</div>
                 <div class="bwt-route-status" style="color:${statusColor};">${statusLabel}</div>
