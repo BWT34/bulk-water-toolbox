@@ -1,5 +1,7 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
+    const SCRIPT_VERSION = 'v3';
+    console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
     // This script lives in the js folder; the quote page sits one level up,
@@ -11,6 +13,7 @@
         ? new URL('../' + QUOTE_PAGE, SCRIPT_SRC).href   // js/ -> one folder up
         : new URL(QUOTE_PAGE, location.href).href;       // fallback: same folder as the page
     const ADDRESS_LEGEND_MATCH = /delivery address/i; // the Delivery Address field on the order form
+    const RATE_LABEL = 'FAF Estimate';                // label of the number field that receives the quoted rate
 
     // ---- Button + pop-up ----
     const btn = document.createElement('button');
@@ -110,18 +113,103 @@
         return true;
     }
 
-    // ---- The quote page sends the chosen address back here ----
+    // ---- Fill the FAF Estimate number field (found by its label, like the
+    // other scripts do, since Cognito renumbers its internal ids) ----
+    function normalizeLabelText(text) {
+        return (text || '').replace(/\s+/g, ' ').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+    }
+
+    const FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea';
+
+    function inputForLabel(label) {
+        // 1. the label's own "for" link
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        // 2. otherwise the first input in the label's own field block
+        //    (stop climbing before we reach a block holding other labels)
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function findInputByLabelText(labelText) {
+        const target = normalizeLabelText(labelText);
+        const labels = Array.from(document.querySelectorAll('label.cog-label, label'));
+        // exact match first, then "starts with" (copes with extra text such as "Required")
+        for (const exact of [true, false]) {
+            for (const label of labels) {
+                const t = normalizeLabelText(label.textContent);
+                if (exact ? t === target : t.indexOf(target) === 0) {
+                    const input = inputForLabel(label);
+                    if (input) return input;
+                }
+            }
+        }
+        console.log('BWT quote: no input found for label "' + labelText + '". Labels on page:',
+            labels.map((l) => JSON.stringify(l.textContent.trim())));
+        return null;
+    }
+
+    // rate is a number, or null when the address is outside the rate schedule.
+    // Returns true if the field was found and set.
+    function fillRate(rate) {
+        const input = findInputByLabelText(RATE_LABEL);
+        if (!input) return false;
+        setVueInputValue(input, rate === null ? '' : rate.toFixed(2));
+        return true;
+    }
+
+    // ---- The quote page sends the chosen address (and rate) back here ----
     window.addEventListener('message', (e) => {
         if (e.origin !== location.origin) return; // only our own quote page
         const d = e.data;
         if (!d || d.type !== 'bwt-quote-address' || !d.address) return;
 
-        if (fillDeliveryAddress(d.address)) {
-            closeQuote();
-            toast('Delivery address added to the order');
-        } else {
+        const rate = (typeof d.rate === 'number' && isFinite(d.rate)) ? d.rate : null;
+
+        if (!fillDeliveryAddress(d.address)) {
             toast("Couldn't find the Delivery Address fields on this page", true);
+            return;
+        }
+        const rateSet = fillRate(rate);
+        closeQuote();
+
+        if (rate === null) {
+            toast('Address added. Outside the rate schedule, so the ' + RATE_LABEL + ' is blank - quote manually', true);
+        } else if (!rateSet) {
+            toast('Address added, but the "' + RATE_LABEL + '" field was not found on this page (script ' + SCRIPT_VERSION + ')', true);
+        } else {
+            toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
-
+    // ---- Show a $ in front of the FAF Estimate number (display only) ----
+    (function addDollarSign() {
+        let tries = 0;
+        const timer = setInterval(() => {
+            const input = findInputByLabelText(RATE_LABEL);
+            if (input) {
+                clearInterval(timer);
+                if (input.dataset.bwtDollar) return;
+                input.dataset.bwtDollar = '1';
+                const box = input.parentElement;
+                if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+                const sign = document.createElement('span');
+                sign.textContent = '$';
+                sign.style.cssText = 'position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#606266;pointer-events:none;';
+                box.appendChild(sign);
+                input.style.paddingLeft = '22px';
+            } else if (++tries > 20) {
+                clearInterval(timer); // give up after about 10 seconds
+            }
+        }, 500);
+    })();
 })();
