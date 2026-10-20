@@ -132,7 +132,7 @@
                 return;
             }
 
-            const distanceKm = (el.distance.value / 1000).toFixed(2);
+            const distanceKm = (el.distance.value / 1000 * 2).toFixed(2);
 
             const distanceInput = findInputByLabelText(DISTANCE_LABEL_TEXT);
 
