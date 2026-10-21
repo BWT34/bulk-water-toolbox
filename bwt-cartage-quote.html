@@ -471,6 +471,35 @@
     run(sel && sel.id ? { placeId: sel.id } : textDest, !!(sel && sel.id));
   }
 
+  // ---- Background mode (?auto=1): the order page's pop-up script asks this page for a
+  // rate for a typed address, using the same BANDS as above, and gets the answer back. ----
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin) return;
+    const d = e.data;
+    if (!d || d.type !== 'bwt-quote-request' || !d.text) return;
+    const reply = (rate, status) => {
+      if (e.source) e.source.postMessage({ type: 'bwt-quote-result', id: d.id, rate: rate, status: status, text: d.text }, location.origin);
+    };
+    let waited = 0;
+    const attempt = () => {
+      if (!(window.google && google.maps && google.maps.DistanceMatrixService)) {
+        if ((waited += 250) > 15000) { reply(null, 'NOT_LOADED'); return; }
+        setTimeout(attempt, 250);
+        return;
+      }
+      new google.maps.DistanceMatrixService().getDistanceMatrix({
+        origins: [DEPOT], destinations: [d.text], travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.METRIC
+      }, (response, status) => {
+        const el = status === 'OK' ? response.rows[0].elements[0] : null;
+        if (!el || el.status !== 'OK') { reply(null, status === 'OK' ? el.status : status); return; }
+        const bi = bandIndex((el.distance.value / 1000) * 2);
+        reply(bi === -1 ? null : BANDS[bi].rate, bi === -1 ? 'OUTSIDE' : 'OK');
+      });
+    };
+    attempt();
+  });
+
   go.addEventListener('click', calculate);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculate(); });
 
