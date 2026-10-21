@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v3';
+    const SCRIPT_VERSION = 'v6';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -191,5 +191,28 @@
             toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
+
+    // ---- Show a $ in front of the FAF Estimate number (display only,
+    // the stored value stays a plain number) ----
+    (function addDollarSign() {
+        let tries = 0;
+        const timer = setInterval(() => {
+            const input = findInputByLabelText(RATE_LABEL);
+            if (input) {
+                clearInterval(timer);
+                if (input.dataset.bwtDollar) return;
+                input.dataset.bwtDollar = '1';
+                const box = input.parentElement;
+                if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+                const sign = document.createElement('span');
+                sign.textContent = '$';
+                sign.style.cssText = 'position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#606266;pointer-events:none;';
+                box.appendChild(sign);
+                input.style.paddingLeft = '22px';
+            } else if (++tries > 20) {
+                clearInterval(timer); // give up after about 10 seconds
+            }
+        }, 500);
+    })();
 
 })();
