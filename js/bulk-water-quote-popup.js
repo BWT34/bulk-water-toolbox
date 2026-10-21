@@ -28,7 +28,7 @@
     overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(2,6,23,.6);display:none;align-items:center;justify-content:center;padding:12px;';
 
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:relative;width:100%;max-width:540px;height:min(92vh,760px);background:#f1f5f9;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);';
+    panel.style.cssText = 'position:relative;width:100%;max-width:540px;height:min(96vh,860px);background:#f1f5f9;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);';
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -191,25 +191,5 @@
             toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
-    // ---- Show a $ in front of the FAF Estimate number (display only) ----
-    (function addDollarSign() {
-        let tries = 0;
-        const timer = setInterval(() => {
-            const input = findInputByLabelText(RATE_LABEL);
-            if (input) {
-                clearInterval(timer);
-                if (input.dataset.bwtDollar) return;
-                input.dataset.bwtDollar = '1';
-                const box = input.parentElement;
-                if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
-                const sign = document.createElement('span');
-                sign.textContent = '$';
-                sign.style.cssText = 'position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#606266;pointer-events:none;';
-                box.appendChild(sign);
-                input.style.paddingLeft = '22px';
-            } else if (++tries > 20) {
-                clearInterval(timer); // give up after about 10 seconds
-            }
-        }, 500);
-    })();
+
 })();
