@@ -49,7 +49,21 @@
   /* Compact layout when shown inside the order page pop-up */
   .embed .sub, .embed .foot { display: none; }
   .embed .wrap { padding: 10px; }
-  .embed #map { height: 210px; }
+  .embed #map { height: auto; flex: 1 1 auto; min-height: 120px; }
+  /* Pop-up: everything fits in the window; the map takes whatever height is left */
+  html, body { height: 100%; }
+  .embed .wrap { min-height: 100%; display: flex; flex-direction: column; }
+  .embed .card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 12px; }
+  .embed #result { flex: 1 1 auto; min-height: 0; flex-direction: column; margin-top: 10px; }
+  .embed #result > * { flex: 0 0 auto; }
+  .embed #result > #mapBox { flex: 1 1 auto; min-height: 150px; flex-direction: column; margin-top: 8px; }
+  .embed #mapBox .hint { margin-top: 4px; }
+  .embed .rate { font-size: 34px; }
+  .embed .row { padding: 5px 0; font-size: 13px; }
+  .embed .note { margin-top: 8px; padding: 7px 10px; font-size: 12px; }
+  .embed #addrHint, .embed #priced { display: none; }
+  .embed #orderBtn { margin-top: 10px; padding: 10px; }
+  .embed button { margin-top: 8px; padding: 10px; }
   .embed h1 { font-size: 17px; margin: 0 0 10px; padding-right: 36px; }
 </style>
 </head>
@@ -71,7 +85,7 @@
       <div class="row"><span>Round trip</span><span id="rtKm"></span></div>
       <div class="row" id="slRow" style="display:none"><span>Straight line</span><span id="slKm"></span></div>
       <div class="row"><span>Distance band</span><span id="bandText"></span></div>
-      <div class="row"><span>Priced from</span><span id="basedOn"></span></div>
+      <div class="row" id="priced"><span>Priced from</span><span id="basedOn"></span></div>
       <div id="notes"></div>
       <div id="mapBox">
         <div id="map" role="img" aria-label="Map showing the delivery address against the delivery rings around the depot"></div>
@@ -251,7 +265,7 @@
 
   function showError(msg) {
     $('orderBtn').style.display = 'none';
-    result.style.display = 'block';
+    result.style.display = EMBEDDED ? 'flex' : 'block';
     $('rateText').textContent = '';
     $('rtKm').textContent = $('bandText').textContent = $('basedOn').textContent = '';
     notes.innerHTML = '';
@@ -262,7 +276,7 @@
   }
 
   function showQuote(rtKm, label, addr, areaOnly) {
-    result.style.display = 'block';
+    result.style.display = EMBEDDED ? 'flex' : 'block';
     notes.innerHTML = '';
     $('slRow').style.display = 'none';
     setOrderLink(addr, rtKm);
@@ -373,7 +387,7 @@
   async function updateMap(destPromise) {
     const token = ++mapToken;
     const mapBox = $('mapBox');
-    mapBox.style.display = 'block'; // the map needs a visible box when it is first created
+    mapBox.style.display = EMBEDDED ? 'flex' : 'block'; // the map needs a visible box when it is first created
     const both = await Promise.all([ensureMap(), destPromise]);
     if (token !== mapToken) return; // a newer quote has taken over
     if (!both[0]) { mapBox.style.display = 'none'; return; }
