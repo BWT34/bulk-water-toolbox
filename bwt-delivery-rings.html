@@ -37,7 +37,7 @@
 <div id="map" role="img" aria-label="Map of the lower North Island with delivery rings every 10 km from the depot"></div>
 <div class="card">
   <h1>Delivery rings from the depot</h1>
-  <p>34 Montgomery Crescent, Upper Hutt. Rings every 10 km out to 100 km. These are straight-line distances, so driving distance is longer.</p>
+  <p>34 Montgomery Crescent, Upper Hutt. Rings every 10 km out to 150 km. These are straight-line distances, so driving distance is longer.</p>
   <p id="msg" hidden></p>
 </div>
 
@@ -48,7 +48,7 @@
   // Used if the address lookup is unavailable (approximate, within about 1 km)
   const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 };
   const RING_STEP_KM = 10;
-  const RING_MAX_KM = 100;
+  const RING_MAX_KM = 150;
 
   const msg = document.getElementById('msg');
   function showMsg(t) { msg.textContent = t; msg.hidden = false; }
