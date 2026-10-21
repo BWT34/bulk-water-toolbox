@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v6';
+    const SCRIPT_VERSION = 'v7';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -181,6 +181,9 @@
             return;
         }
         const rateSet = fillRate(rate);
+        // remember what we wrote, so the automatic quote below doesn't redo it
+        autoLastSet = rate === null ? '' : rate.toFixed(2);
+        autoLastText = currentAddressText();
         closeQuote();
 
         if (rate === null) {
@@ -191,6 +194,82 @@
             toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
+
+    // ---- Automatic FAF Estimate from the typed Delivery Address ----
+    // Every couple of seconds, if the address has changed and is complete, ask the
+    // quote page (hidden, same rate table as the pop-up) for the rate and put it
+    // in FAF Estimate. The field stays editable: a value somebody typed by hand is
+    // never overwritten, only an empty field or one this script filled itself.
+    const AUTO_FILL = true;
+    let autoLastText = '';      // last address text we quoted (or the pop-up filled)
+    let autoPrevTick = '';      // address text seen on the previous tick (waits for typing to settle)
+    let autoLastSet = null;     // value this script last wrote to the field (null = never)
+    let autoFrame = null, autoReady = false, autoQueue = [], autoReqId = 0, autoPending = 0;
+
+    function currentAddressText() {
+        const fs = findAddressFieldset();
+        if (!fs) return '';
+        const vals = Array.from(fs.querySelectorAll('input.el-input__inner, input[type="text"]'))
+            .slice(0, 4).map((i) => (i.value || '').trim());
+        if (vals.length < 3 || !vals[0] || !vals[2]) return ''; // need street and city
+        return vals.filter(Boolean).concat('New Zealand').join(', ');
+    }
+
+    function autoSend(msg) {
+        if (!autoFrame) {
+            autoFrame = document.createElement('iframe');
+            autoFrame.title = 'Quote helper';
+            autoFrame.setAttribute('aria-hidden', 'true');
+            autoFrame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;top:-10px;border:0;opacity:0;pointer-events:none;';
+            autoFrame.addEventListener('load', () => { autoReady = true; autoQueue.splice(0).forEach((m) => autoFrame.contentWindow.postMessage(m, location.origin)); });
+            autoFrame.src = QUOTE_URL + '?embed=1&auto=1';
+            document.body.appendChild(autoFrame);
+        }
+        if (autoReady) autoFrame.contentWindow.postMessage(msg, location.origin);
+        else autoQueue.push(msg);
+    }
+
+    function applyAutoRate(rate, status, text) {
+        if (text !== currentAddressText()) return; // address changed again while waiting
+        const input = findInputByLabelText(RATE_LABEL);
+        if (!input) return;
+        const current = (input.value || '').replace(/[^0-9.\-]/g, '');
+        const mine = autoLastSet !== null && current !== '' && parseFloat(current) === parseFloat(autoLastSet || 'NaN');
+        if (current !== '' && !mine) { console.log('BWT quote: FAF Estimate was typed by hand, left alone'); return; }
+        const next = rate === null ? '' : rate.toFixed(2);
+        if (current !== '' && next !== '' && parseFloat(current) === parseFloat(next)) { autoLastSet = next; return; }
+        setVueInputValue(input, next);
+        autoLastSet = next;
+        if (rate === null) {
+            toast(status === 'OUTSIDE'
+                ? 'Outside the rate schedule - enter the ' + RATE_LABEL + ' by hand'
+                : "Couldn't work out a " + RATE_LABEL + ' for that address - enter it by hand', true);
+        } else {
+            toast(RATE_LABEL + ' set to $' + next + ' from the Delivery Address');
+        }
+    }
+
+    window.addEventListener('message', (e) => {
+        if (e.origin !== location.origin) return;
+        const d = e.data;
+        if (!d || d.type !== 'bwt-quote-result' || d.id !== autoReqId) return;
+        autoPending = 0;
+        applyAutoRate(typeof d.rate === 'number' ? d.rate : null, d.status, d.text || autoLastText);
+    });
+
+    if (AUTO_FILL) {
+        setInterval(() => {
+            const text = currentAddressText();
+            const settled = text && text === autoPrevTick; // unchanged for one whole tick
+            autoPrevTick = text;
+            if (!settled || text === autoLastText) return;
+            if (!findInputByLabelText(RATE_LABEL)) return;
+            autoLastText = text;
+            autoReqId++;
+            autoPending = autoReqId;
+            autoSend({ type: 'bwt-quote-request', id: autoReqId, text: text });
+        }, 1500);
+    }
 
     // ---- Show a $ in front of the FAF Estimate number (display only,
     // the stored value stays a plain number) ----
