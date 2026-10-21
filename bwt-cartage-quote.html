@@ -110,7 +110,7 @@
   // ---- Map with delivery rings ----
   const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 }; // used if Google can't look up the depot address
   const RING_STEP_KM = 10;
-  const RING_MAX_KM = 100;
+  const RING_MAX_KM = 150;
 
   // ---- "Start order" button (pre-fills the Orders form) ----
   // Leave ORDER_FORM_URL empty to hide the button.
@@ -131,7 +131,13 @@
     { max: 70,  rate: 26.00 },
     { max: 80,  rate: 30.00 },
     { max: 90,  rate: 33.50 },
-    { max: 100, rate: 37.00 }
+    { max: 100, rate: 37.00 },
+    // Over 100 km round trip: not on the printed schedule, priced at the 100 km rate plus $3.50 per extra 10 km
+    { max: 110, rate: 40.50, extra: true },
+    { max: 120, rate: 44.00, extra: true },
+    { max: 130, rate: 47.50, extra: true },
+    { max: 140, rate: 51.00, extra: true },
+    { max: 150, rate: 54.50, extra: true }
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -299,6 +305,9 @@
       rateEl.appendChild(s);
     }
     $('bandText').textContent = bandLabel(i);
+    if (BANDS[i].extra) {
+      addNote('Over 100 km round trip. This is not on the printed schedule: it is the 100 km rate plus $3.50 for each extra 10 km. Confirm on the order.', 'warn');
+    }
 
     // Close to a band edge? Google's road distance can differ slightly from the
     // schedule's, so flag it rather than quoting with false confidence.
