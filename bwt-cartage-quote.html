@@ -378,10 +378,22 @@
     });
   }
 
+  // Fallback when the geocoder isn't available on the key: Places (New) text search
+  async function placeSearch(address) {
+    try {
+      const lib = await google.maps.importLibrary('places');
+      const res = await lib.Place.searchByText({ textQuery: address, fields: ['location'], maxResultCount: 1, region: 'nz' });
+      return res && res.places && res.places[0] ? toLatLng(res.places[0].location) : null;
+    } catch (e) { return null; }
+  }
+  async function locate(address) {
+    return (await geocode(address)) || (await placeSearch(address));
+  }
+
   function ensureMap() {
     if (!mapPromise) mapPromise = (async () => {
       try {
-        depotPos = (await geocode(DEPOT)) || DEPOT_FALLBACK;
+        depotPos = (await locate(DEPOT)) || DEPOT_FALLBACK;
         map = new google.maps.Map($('map'), {
           center: depotPos, zoom: 9, gestureHandling: 'cooperative',
           streetViewControl: false, fullscreenControl: false, mapTypeControl: false
@@ -489,7 +501,7 @@
           : parseAddress((response.destinationAddresses || [])[0], areaOnly);
         showQuote((el.distance.value / 1000) * 2, typed, addr, areaOnly);
         afterQuote(lastRate === null ? 'OUTSIDE' : 'OK');
-        updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : geocode(textDest));
+        updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : locate(textDest));
       });
     };
 
