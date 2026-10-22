@@ -72,9 +72,8 @@
     const panel = document.createElement('div');
     panel.id = 'bwt-job-route';
     panel.style.position = 'fixed';
-    panel.style.top = '50%';
+    panel.style.bottom = '10px';
     panel.style.right = '10px';
-    panel.style.transform = 'translateY(-50%)';
     panel.style.zIndex = '99999';
     document.body.appendChild(panel);
     panel.appendChild((function () {
