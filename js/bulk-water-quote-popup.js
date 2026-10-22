@@ -252,6 +252,10 @@
         const dock = document.getElementById(DOCK_ID);
         if (!dock) return;
         const route = document.getElementById('bwt-job-route');
+        if (route && (route.style.bottom !== '10px' || route.style.top !== 'auto')) {
+            // sit the route widget in the bottom-right corner so the quote panel can stack above it
+            route.style.top = 'auto'; route.style.bottom = '10px'; route.style.transform = 'none';
+        }
         const routeH = route ? route.getBoundingClientRect().height : 0;
         const bottom = 10 + (routeH ? routeH + 8 : 0);
         const room = window.innerHeight - bottom - 10;
