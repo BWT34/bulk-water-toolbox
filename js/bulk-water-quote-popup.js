@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v8';
+    const SCRIPT_VERSION = 'v10';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -251,17 +251,25 @@
     function layoutDock() {
         const dock = document.getElementById(DOCK_ID);
         if (!dock) return;
+        if (window.matchMedia('(max-width: 899px)').matches) return; // phones: panel is off-screen, route widget left alone
+        // Stack the quote panel above the route widget and centre the pair
+        // vertically on the right, level with the weather panel on the left.
         const route = document.getElementById('bwt-job-route');
-        if (route && (route.style.bottom !== '10px' || route.style.top !== 'auto')) {
-            // sit the route widget in the bottom-right corner so the quote panel can stack above it
-            route.style.top = 'auto'; route.style.bottom = '10px'; route.style.transform = 'none';
-        }
+        const H = window.innerHeight, GAP = 8, MARGIN = 10;
         const routeH = route ? route.getBoundingClientRect().height : 0;
-        const bottom = 10 + (routeH ? routeH + 8 : 0);
-        const room = window.innerHeight - bottom - 10;
-        dock.style.bottom = bottom + 'px';
-        dock.style.height = Math.max(0, Math.min(330, room)) + 'px';
-        dock.style.visibility = room < 170 ? 'hidden' : 'visible'; // too little room above the route widget
+        let dockH = Math.min(330, H - routeH - (routeH ? GAP : 0) - 2 * MARGIN);
+        if (dockH < 170) dockH = 0; // too little room: leave the route widget on its own
+        const total = dockH + (dockH && routeH ? GAP : 0) + routeH;
+        const top = Math.max(MARGIN, Math.round((H - total) / 2));
+        dock.style.top = top + 'px';
+        dock.style.bottom = 'auto';
+        dock.style.height = dockH + 'px';
+        dock.style.visibility = dockH ? 'visible' : 'hidden';
+        if (route) {
+            route.style.top = (top + dockH + (dockH ? GAP : 0)) + 'px';
+            route.style.bottom = 'auto';
+            route.style.transform = 'none';
+        }
     }
     window.addEventListener('resize', layoutDock);
     setInterval(layoutDock, 1000); // the route widget grows and shrinks as it loads
