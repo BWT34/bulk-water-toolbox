@@ -65,6 +65,17 @@
   .embed #orderBtn { margin-top: 10px; padding: 10px; }
   .embed button { margin-top: 8px; padding: 10px; }
   .embed h1 { font-size: 17px; margin: 0 0 10px; padding-right: 36px; }
+  /* Docked panel on the order page (?dock=1): just the quote and the map, driven by the order page */
+  .dock .wrap { padding: 0; }
+  .dock .card { border: 0; border-radius: 0; padding: 10px 12px; }
+  .dock h1, .dock label, .dock #addrBox, .dock #addrHint, .dock #go, .dock #orderBtn, .dock #slRow { display: none !important; }
+  .dock #result { margin-top: 0; }
+  .dock .rate { font-size: 28px; }
+  .dock .row { padding: 3px 0; font-size: 12px; }
+  .dock .note { margin-top: 6px; padding: 5px 8px; font-size: 11px; }
+  .dock #mapBox .hint { display: none; }
+  #dockIdle { display: none; color: var(--muted); font-size: 12px; text-align: center; padding: 18px 8px; }
+  .dock #dockIdle { display: block; }
 </style>
 </head>
 <body>
@@ -80,6 +91,7 @@
     <div class="hint" id="addrHint">A street address gives the best figure. A suburb alone is measured to the centre of that area.</div>
     <button id="go" disabled>Loading maps…</button>
 
+    <div id="dockIdle">Cartage quote: waiting for the delivery address…</div>
     <div id="result">
       <div class="rate" id="rateText"></div>
       <div class="row"><span>Round trip</span><span id="rtKm"></span></div>
@@ -151,7 +163,17 @@
   const EMBEDDED = (function () {
     try { return window.parent !== window && /(^|[?&])embed=1(&|$)/.test(location.search); } catch (e) { return false; }
   })();
+  const DOCK = EMBEDDED && /(^|[?&])dock=1(&|$)/.test(location.search);
   if (EMBEDDED) document.body.classList.add('embed');
+  if (DOCK) document.body.classList.add('dock');
+  let pendingReply = null; // dock mode: the request waiting for its answer
+  function afterQuote(status) {
+    $('dockIdle').style.display = 'none';
+    if (!pendingReply) return;
+    const r = pendingReply; pendingReply = null;
+    if (r.source) r.source.postMessage({ type: 'bwt-quote-result', id: r.id, text: r.text,
+      rate: status === 'OK' ? lastRate : null, status: status }, location.origin);
+  }
   let lastAddr = null; // address parts from the latest quote
   let lastRate = null; // band rate from the latest quote (null when outside the schedule)
 
@@ -454,16 +476,19 @@
         done();
         if (status !== 'OK') {
           showError('Google could not calculate this (' + status + '). If it keeps happening, check the API key and its allowed websites.');
+          afterQuote(status);
           return;
         }
         if (el.status !== 'OK') {
           showError("Couldn't find that address. Try adding the suburb or town.");
+          afterQuote('NOT_FOUND');
           return;
         }
         const addr = sel
           ? addressFromComponents(sel.components, areaOnly)
           : parseAddress((response.destinationAddresses || [])[0], areaOnly);
         showQuote((el.distance.value / 1000) * 2, typed, addr, areaOnly);
+        afterQuote(lastRate === null ? 'OUTSIDE' : 'OK');
         updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : geocode(textDest));
       });
     };
@@ -481,6 +506,20 @@
       if (e.source) e.source.postMessage({ type: 'bwt-quote-result', id: d.id, rate: rate, status: status, text: d.text }, location.origin);
     };
     let waited = 0;
+    if (DOCK) {
+      // Show the quote and map for this address, then report the rate back
+      const run = () => {
+        if (!(window.google && google.maps && google.maps.DistanceMatrixService)) {
+          if ((waited += 250) > 15000) { reply(null, 'NOT_LOADED'); return; }
+          setTimeout(run, 250); return;
+        }
+        pendingReply = { id: d.id, text: d.text, source: e.source };
+        selected = null; input.value = d.text;
+        calculate();
+      };
+      run();
+      return;
+    }
     const attempt = () => {
       if (!(window.google && google.maps && google.maps.DistanceMatrixService)) {
         if ((waited += 250) > 15000) { reply(null, 'NOT_LOADED'); return; }
@@ -515,6 +554,7 @@
   }
 
   async function initAutocomplete() {
+    if (DOCK) return; // the order page supplies the address
     try {
       let lib = null;
       if (google.maps.importLibrary) lib = await google.maps.importLibrary('places');
