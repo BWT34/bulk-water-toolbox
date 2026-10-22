@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v7';
+    const SCRIPT_VERSION = 'v8';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -20,8 +20,28 @@
     btn.id = 'bwt-quote-popup-btn';
     btn.type = 'button';
     btn.textContent = 'Cartage quote';
-    btn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:99998;font:600 14px Segoe UI,Arial,sans-serif;background:#1d4ed8;color:#fff;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.3);';
+    btn.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99998;font:600 14px Segoe UI,Arial,sans-serif;background:#1d4ed8;color:#fff;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.3);';
     document.body.appendChild(btn);
+
+    // On phones: a small button tucked in the top-right corner, hidden while a field
+    // is being typed in, so it never sits over the form or the keyboard.
+    const btnStyle = document.createElement('style');
+    btnStyle.textContent = `
+        @media (max-width: 899px) {
+            #bwt-quote-popup-btn { left: auto !important; right: 8px !important; top: 8px !important; transform: none !important;
+                font-size: 12px !important; padding: 6px 11px !important; opacity: .92; }
+            #bwt-quote-popup-btn.bwt-typing { display: none !important; }
+        }`;
+    document.head.appendChild(btnStyle);
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches && e.target.matches('input, textarea, select') && !overlay.contains(e.target)) btn.classList.add('bwt-typing');
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!(a && a.matches && a.matches('input, textarea, select'))) btn.classList.remove('bwt-typing');
+        }, 100);
+    });
 
     const overlay = document.createElement('div');
     overlay.id = 'bwt-quote-overlay';
@@ -184,6 +204,7 @@
         // remember what we wrote, so the automatic quote below doesn't redo it
         autoLastSet = rate === null ? '' : rate.toFixed(2);
         autoLastText = currentAddressText();
+        if (autoLastText) { autoReqId++; autoNoFillId = autoReqId; autoSend({ type: 'bwt-quote-request', id: autoReqId, text: autoLastText }); }
         closeQuote();
 
         if (rate === null) {
@@ -204,7 +225,7 @@
     let autoLastText = '';      // last address text we quoted (or the pop-up filled)
     let autoPrevTick = '';      // address text seen on the previous tick (waits for typing to settle)
     let autoLastSet = null;     // value this script last wrote to the field (null = never)
-    let autoFrame = null, autoReady = false, autoQueue = [], autoReqId = 0, autoPending = 0;
+    let autoFrame = null, autoReady = false, autoQueue = [], autoReqId = 0, autoPending = 0, autoNoFillId = 0;
 
     function currentAddressText() {
         const fs = findAddressFieldset();
@@ -215,15 +236,43 @@
         return vals.filter(Boolean).concat('New Zealand').join(', ');
     }
 
+    // The helper page is shown as a small panel at the bottom right (above the route
+    // widget) on wide screens, and kept off-screen on phones. It is the one place
+    // the rate table lives: it works out the rate and also shows the quote and map.
+    const DOCK_ID = 'bwt-quote-dock';
+    const dockStyle = document.createElement('style');
+    dockStyle.textContent = `
+        #${DOCK_ID} { position: fixed; right: 10px; bottom: 10px; width: 360px; height: 300px; z-index: 99997;
+            border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,.3); background: #f1f5f9; }
+        #${DOCK_ID} iframe { width: 100%; height: 100%; border: 0; display: block; }
+        @media (max-width: 899px) { #${DOCK_ID} { right: auto; left: -9999px; } }`;
+    document.head.appendChild(dockStyle);
+
+    function layoutDock() {
+        const dock = document.getElementById(DOCK_ID);
+        if (!dock) return;
+        const route = document.getElementById('bwt-job-route');
+        const routeH = route ? route.getBoundingClientRect().height : 0;
+        const bottom = 10 + (routeH ? routeH + 8 : 0);
+        const room = window.innerHeight - bottom - 10;
+        dock.style.bottom = bottom + 'px';
+        dock.style.height = Math.max(0, Math.min(330, room)) + 'px';
+        dock.style.visibility = room < 170 ? 'hidden' : 'visible'; // too little room above the route widget
+    }
+    window.addEventListener('resize', layoutDock);
+    setInterval(layoutDock, 1000); // the route widget grows and shrinks as it loads
+
     function autoSend(msg) {
         if (!autoFrame) {
+            const dock = document.createElement('div');
+            dock.id = DOCK_ID;
             autoFrame = document.createElement('iframe');
-            autoFrame.title = 'Quote helper';
-            autoFrame.setAttribute('aria-hidden', 'true');
-            autoFrame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;top:-10px;border:0;opacity:0;pointer-events:none;';
+            autoFrame.title = 'Cartage quote for the delivery address';
             autoFrame.addEventListener('load', () => { autoReady = true; autoQueue.splice(0).forEach((m) => autoFrame.contentWindow.postMessage(m, location.origin)); });
-            autoFrame.src = QUOTE_URL + '?embed=1&auto=1';
-            document.body.appendChild(autoFrame);
+            autoFrame.src = QUOTE_URL + '?embed=1&dock=1';
+            dock.appendChild(autoFrame);
+            document.body.appendChild(dock);
+            layoutDock();
         }
         if (autoReady) autoFrame.contentWindow.postMessage(msg, location.origin);
         else autoQueue.push(msg);
@@ -254,10 +303,12 @@
         const d = e.data;
         if (!d || d.type !== 'bwt-quote-result' || d.id !== autoReqId) return;
         autoPending = 0;
+        if (d.id === autoNoFillId) return; // pop-up already filled the field; this was only to update the panel
         applyAutoRate(typeof d.rate === 'number' ? d.rate : null, d.status, d.text || autoLastText);
     });
 
     if (AUTO_FILL) {
+        autoSend({ type: 'bwt-quote-hello' }); // creates the panel straight away (shows 'waiting for the delivery address')
         setInterval(() => {
             const text = currentAddressText();
             const settled = text && text === autoPrevTick; // unchanged for one whole tick
