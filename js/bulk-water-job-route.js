@@ -49,6 +49,12 @@
             overflow: hidden;
             box-shadow: 0 4px 10px rgba(0,0,0,.3);
         }
+        #bwt-job-route .bwt-map .bwt-canvas { width: 100%; height: 180px; }
+        #bwt-job-route .bwt-map .bwt-kmchip {
+            position: absolute; left: 8px; bottom: 22px; z-index: 2; background: #fff; color: #0f172a;
+            font: 600 12px Segoe UI, Arial, sans-serif; padding: 3px 8px; border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.35);
+        }
         #bwt-job-route .bwt-map iframe {
             width: 100%;
             height: 180px;
@@ -65,6 +71,7 @@
             #bwt-job-route .bwt-route-delay { font-size: 12px; }
             #bwt-job-route .bwt-map { display: block; }
             #bwt-job-route .bwt-map iframe { height: 280px; }
+            #bwt-job-route .bwt-map .bwt-canvas { height: 280px; }
         }
     `;
     document.head.appendChild(styleTag);
@@ -72,8 +79,9 @@
     const panel = document.createElement('div');
     panel.id = 'bwt-job-route';
     panel.style.position = 'fixed';
-    panel.style.bottom = '10px';
+    panel.style.top = '50%';
     panel.style.right = '10px';
+    panel.style.transform = 'translateY(-50%)';
     panel.style.zIndex = '99999';
     document.body.appendChild(panel);
     panel.appendChild((function () {
@@ -160,17 +168,68 @@
 
     }
 
+    // The route map is drawn with Google's Directions service so the whole trip
+    // can be fitted into the frame with a margin. If Directions isn't available
+    // on the API key, it falls back to Google's embedded directions map.
     function buildMapCard(address) {
 
         const card = document.createElement('div');
         card.className = 'bwt-card bwt-map';
+        card.style.position = 'relative';
 
-        const iframe = document.createElement('iframe');
-        iframe.loading = 'lazy';
-        iframe.referrerPolicy = 'no-referrer-when-downgrade';
-        iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
+        const canvas = document.createElement('div');
+        canvas.className = 'bwt-canvas';
+        card.appendChild(canvas);
 
-        card.appendChild(iframe);
+        function useEmbed() {
+            card.innerHTML = '';
+            const iframe = document.createElement('iframe');
+            iframe.loading = 'lazy';
+            iframe.referrerPolicy = 'no-referrer-when-downgrade';
+            iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
+            card.appendChild(iframe);
+        }
+
+        // The map is only shown on wider screens, so don't draw it on phones
+        if (!window.matchMedia('(min-width: 900px)').matches) return card;
+
+        // wait until the card is on the page so the map can measure it
+        setTimeout(() => {
+            try {
+                if (!google.maps.DirectionsService) { useEmbed(); return; }
+                new google.maps.DirectionsService().route({
+                    origin: ORIGIN,
+                    destination: address.full,
+                    travelMode: 'DRIVING'
+                }, (result, status) => {
+                    if (status !== 'OK' || !result.routes || !result.routes[0]) {
+                        console.log('Directions error, using the embedded map:', status);
+                        useEmbed();
+                        return;
+                    }
+                    const map = new google.maps.Map(canvas, {
+                        streetViewControl: false, fullscreenControl: false, mapTypeControl: false,
+                        gestureHandling: 'cooperative'
+                    });
+                    new google.maps.DirectionsRenderer({
+                        map: map, directions: result, suppressInfoWindows: true,
+                        polylineOptions: { strokeColor: '#1d4ed8', strokeOpacity: .9, strokeWeight: 5 }
+                    });
+                    map.fitBounds(result.routes[0].bounds, { top: 24, right: 24, bottom: 24, left: 24 });
+                    const leg = result.routes[0].legs[0];
+                    if (leg && leg.distance) {
+                        const chip = document.createElement('div');
+                        chip.className = 'bwt-kmchip';
+                        chip.textContent = leg.distance.text;
+                        card.appendChild(chip);
+                    }
+                });
+            } catch (e) {
+                console.log('Route map error, using the embedded map:', e);
+                useEmbed();
+            }
+        }, 0);
+
         return card;
 
     }
