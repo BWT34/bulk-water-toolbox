@@ -5,43 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Delivery Order - Bulk Water Transport</title>
 <style>
+html { background: #0b2a2a; }   /* shows only for a split second before the picture loads */
+
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
-    background:
-        linear-gradient(
-            rgba(0,50,50,0.45),
-            rgba(0,30,30,0.60)
-        ),
-        url('trucks.jpg');
-    background-size: cover;
-    background-position: center top;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
     min-height: 100vh;
     box-sizing: border-box;
     padding: 80px 20px 20px 20px;
 }
-/* MOBILE — same swap the toolbox page uses */
+
+/* The truck picture lives on its own layer pinned to the screen,
+   so it stays put while the page scrolls (desktop and mobile alike) */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background:
+        linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
+        url('trucks.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+}
+/* stops the picture jumping when the phone's address bar slides away */
+@supports (height: 100lvh) {
+    body::before { height: 100lvh; }
+}
+
+/* MOBILE: same picture swap as before */
 @media (max-width: 768px) {
-    body {
+    body::before {
         background:
-            linear-gradient(
-                rgba(0,50,50,0.45),
-                rgba(0,30,30,0.60)
-            ),
+            linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
             url('Trucks2.jpg');
         background-size: 120%;
         background-position: center 10%;
         background-repeat: no-repeat;
-        /* iOS Safari has well-documented jank/scroll-drag issues with
-           a fixed background — this is very likely what's causing the
-           page to "move under your finger". Fixed backgrounds are fine
-           on desktop, so this only turns it off below the mobile
-           breakpoint. */
-        background-attachment: scroll;
     }
 }
+
 .back-link {
     position: fixed;
     top: 20px;
@@ -87,7 +94,7 @@ body {
 <!-- Traffic widget — reads the Delivery Address field once it appears
      above and shows a live traffic-aware ETA from the depot -->
 <script src="js/bulk-water-job-route.js?v=4"></script>
-<script src="js/bulk-water-quote-popup.js?v=9"></script> 
+<script src="js/bulk-water-quote-popup.js?v=10"></script>
 <!-- Weather panel — desktop/tablet only, sits on the left to balance
      the traffic widget on the right -->
 <script src="js/bulk-water-weather-panel.js?v=2"></script>
