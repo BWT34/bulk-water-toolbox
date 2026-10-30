@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v3';
+    const SCRIPT_VERSION = 'v10';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -20,15 +20,35 @@
     btn.id = 'bwt-quote-popup-btn';
     btn.type = 'button';
     btn.textContent = 'Cartage quote';
-    btn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:99998;font:600 14px Segoe UI,Arial,sans-serif;background:#1d4ed8;color:#fff;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.3);';
+    btn.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99998;font:600 14px Segoe UI,Arial,sans-serif;background:#1d4ed8;color:#fff;border:0;border-radius:999px;padding:10px 16px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.3);';
     document.body.appendChild(btn);
+
+    // On phones: a small button tucked in the top-right corner, hidden while a field
+    // is being typed in, so it never sits over the form or the keyboard.
+    const btnStyle = document.createElement('style');
+    btnStyle.textContent = `
+        @media (max-width: 899px) {
+            #bwt-quote-popup-btn { left: auto !important; right: 8px !important; top: 8px !important; transform: none !important;
+                font-size: 12px !important; padding: 6px 11px !important; opacity: .92; }
+            #bwt-quote-popup-btn.bwt-typing { display: none !important; }
+        }`;
+    document.head.appendChild(btnStyle);
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches && e.target.matches('input, textarea, select') && !overlay.contains(e.target)) btn.classList.add('bwt-typing');
+    });
+    document.addEventListener('focusout', () => {
+        setTimeout(() => {
+            const a = document.activeElement;
+            if (!(a && a.matches && a.matches('input, textarea, select'))) btn.classList.remove('bwt-typing');
+        }, 100);
+    });
 
     const overlay = document.createElement('div');
     overlay.id = 'bwt-quote-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(2,6,23,.6);display:none;align-items:center;justify-content:center;padding:12px;';
 
     const panel = document.createElement('div');
-    panel.style.cssText = 'position:relative;width:100%;max-width:540px;height:min(92vh,760px);background:#f1f5f9;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);';
+    panel.style.cssText = 'position:relative;width:100%;max-width:540px;height:min(96vh,860px);background:#f1f5f9;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);';
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -181,6 +201,10 @@
             return;
         }
         const rateSet = fillRate(rate);
+        // remember what we wrote, so the automatic quote below doesn't redo it
+        autoLastSet = rate === null ? '' : rate.toFixed(2);
+        autoLastText = currentAddressText();
+        if (autoLastText) { autoReqId++; autoNoFillId = autoReqId; autoSend({ type: 'bwt-quote-request', id: autoReqId, text: autoLastText }); }
         closeQuote();
 
         if (rate === null) {
@@ -191,7 +215,127 @@
             toast('Address and ' + RATE_LABEL + ' ($' + rate.toFixed(2) + ') added to the order');
         }
     });
-    // ---- Show a $ in front of the FAF Estimate number (display only) ----
+
+    // ---- Automatic FAF Estimate from the typed Delivery Address ----
+    // Every couple of seconds, if the address has changed and is complete, ask the
+    // quote page (hidden, same rate table as the pop-up) for the rate and put it
+    // in FAF Estimate. The field stays editable: a value somebody typed by hand is
+    // never overwritten, only an empty field or one this script filled itself.
+    const AUTO_FILL = true;
+    let autoLastText = '';      // last address text we quoted (or the pop-up filled)
+    let autoPrevTick = '';      // address text seen on the previous tick (waits for typing to settle)
+    let autoLastSet = null;     // value this script last wrote to the field (null = never)
+    let autoFrame = null, autoReady = false, autoQueue = [], autoReqId = 0, autoPending = 0, autoNoFillId = 0;
+
+    function currentAddressText() {
+        const fs = findAddressFieldset();
+        if (!fs) return '';
+        const vals = Array.from(fs.querySelectorAll('input.el-input__inner, input[type="text"]'))
+            .slice(0, 4).map((i) => (i.value || '').trim());
+        if (vals.length < 3 || !vals[0] || !vals[2]) return ''; // need street and city
+        return vals.filter(Boolean).concat('New Zealand').join(', ');
+    }
+
+    // The helper page is shown as a small panel at the bottom right (above the route
+    // widget) on wide screens, and kept off-screen on phones. It is the one place
+    // the rate table lives: it works out the rate and also shows the quote and map.
+    const DOCK_ID = 'bwt-quote-dock';
+    const dockStyle = document.createElement('style');
+    dockStyle.textContent = `
+        #${DOCK_ID} { position: fixed; right: 10px; bottom: 10px; width: 360px; height: 300px; z-index: 99997;
+            border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,.3); background: #f1f5f9; }
+        #${DOCK_ID} iframe { width: 100%; height: 100%; border: 0; display: block; }
+        @media (max-width: 899px) { #${DOCK_ID} { right: auto; left: -9999px; } }`;
+    document.head.appendChild(dockStyle);
+
+    function layoutDock() {
+        const dock = document.getElementById(DOCK_ID);
+        if (!dock) return;
+        if (window.matchMedia('(max-width: 899px)').matches) return; // phones: panel is off-screen, route widget left alone
+        // Stack the quote panel above the route widget and centre the pair
+        // vertically on the right, level with the weather panel on the left.
+        const route = document.getElementById('bwt-job-route');
+        const H = window.innerHeight, GAP = 8, MARGIN = 10;
+        const routeH = route ? route.getBoundingClientRect().height : 0;
+        let dockH = Math.min(330, H - routeH - (routeH ? GAP : 0) - 2 * MARGIN);
+        if (dockH < 170) dockH = 0; // too little room: leave the route widget on its own
+        const total = dockH + (dockH && routeH ? GAP : 0) + routeH;
+        const top = Math.max(MARGIN, Math.round((H - total) / 2));
+        dock.style.top = top + 'px';
+        dock.style.bottom = 'auto';
+        dock.style.height = dockH + 'px';
+        dock.style.visibility = dockH ? 'visible' : 'hidden';
+        if (route) {
+            route.style.top = (top + dockH + (dockH ? GAP : 0)) + 'px';
+            route.style.bottom = 'auto';
+            route.style.transform = 'none';
+        }
+    }
+    window.addEventListener('resize', layoutDock);
+    setInterval(layoutDock, 1000); // the route widget grows and shrinks as it loads
+
+    function autoSend(msg) {
+        if (!autoFrame) {
+            const dock = document.createElement('div');
+            dock.id = DOCK_ID;
+            autoFrame = document.createElement('iframe');
+            autoFrame.title = 'Cartage quote for the delivery address';
+            autoFrame.addEventListener('load', () => { autoReady = true; autoQueue.splice(0).forEach((m) => autoFrame.contentWindow.postMessage(m, location.origin)); });
+            autoFrame.src = QUOTE_URL + '?embed=1&dock=1';
+            dock.appendChild(autoFrame);
+            document.body.appendChild(dock);
+            layoutDock();
+        }
+        if (autoReady) autoFrame.contentWindow.postMessage(msg, location.origin);
+        else autoQueue.push(msg);
+    }
+
+    function applyAutoRate(rate, status, text) {
+        if (text !== currentAddressText()) return; // address changed again while waiting
+        const input = findInputByLabelText(RATE_LABEL);
+        if (!input) return;
+        const current = (input.value || '').replace(/[^0-9.\-]/g, '');
+        const mine = autoLastSet !== null && current !== '' && parseFloat(current) === parseFloat(autoLastSet || 'NaN');
+        if (current !== '' && !mine) { console.log('BWT quote: FAF Estimate was typed by hand, left alone'); return; }
+        const next = rate === null ? '' : rate.toFixed(2);
+        if (current !== '' && next !== '' && parseFloat(current) === parseFloat(next)) { autoLastSet = next; return; }
+        setVueInputValue(input, next);
+        autoLastSet = next;
+        if (rate === null) {
+            toast(status === 'OUTSIDE'
+                ? 'Outside the rate schedule - enter the ' + RATE_LABEL + ' by hand'
+                : "Couldn't work out a " + RATE_LABEL + ' for that address - enter it by hand', true);
+        } else {
+            toast(RATE_LABEL + ' set to $' + next + ' from the Delivery Address');
+        }
+    }
+
+    window.addEventListener('message', (e) => {
+        if (e.origin !== location.origin) return;
+        const d = e.data;
+        if (!d || d.type !== 'bwt-quote-result' || d.id !== autoReqId) return;
+        autoPending = 0;
+        if (d.id === autoNoFillId) return; // pop-up already filled the field; this was only to update the panel
+        applyAutoRate(typeof d.rate === 'number' ? d.rate : null, d.status, d.text || autoLastText);
+    });
+
+    if (AUTO_FILL) {
+        autoSend({ type: 'bwt-quote-hello' }); // creates the panel straight away (shows 'waiting for the delivery address')
+        setInterval(() => {
+            const text = currentAddressText();
+            const settled = text && text === autoPrevTick; // unchanged for one whole tick
+            autoPrevTick = text;
+            if (!settled || text === autoLastText) return;
+            if (!findInputByLabelText(RATE_LABEL)) return;
+            autoLastText = text;
+            autoReqId++;
+            autoPending = autoReqId;
+            autoSend({ type: 'bwt-quote-request', id: autoReqId, text: text });
+        }, 1500);
+    }
+
+    // ---- Show a $ in front of the FAF Estimate number (display only,
+    // the stored value stays a plain number) ----
     (function addDollarSign() {
         let tries = 0;
         const timer = setInterval(() => {
@@ -212,4 +356,5 @@
             }
         }, 500);
     })();
+
 })();

@@ -49,8 +49,33 @@
   /* Compact layout when shown inside the order page pop-up */
   .embed .sub, .embed .foot { display: none; }
   .embed .wrap { padding: 10px; }
-  .embed #map { height: 210px; }
+  .embed #map { height: auto; flex: 1 1 auto; min-height: 120px; }
+  /* Pop-up: everything fits in the window; the map takes whatever height is left */
+  html, body { height: 100%; }
+  .embed .wrap { min-height: 100%; display: flex; flex-direction: column; }
+  .embed .card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding: 12px; }
+  .embed #result { flex: 1 1 auto; min-height: 0; flex-direction: column; margin-top: 10px; }
+  .embed #result > * { flex: 0 0 auto; }
+  .embed #result > #mapBox { flex: 1 1 auto; min-height: 150px; flex-direction: column; margin-top: 8px; }
+  .embed #mapBox .hint { margin-top: 4px; }
+  .embed .rate { font-size: 34px; }
+  .embed .row { padding: 5px 0; font-size: 13px; }
+  .embed .note { margin-top: 8px; padding: 7px 10px; font-size: 12px; }
+  .embed #addrHint, .embed #priced { display: none; }
+  .embed #orderBtn { margin-top: 10px; padding: 10px; }
+  .embed button { margin-top: 8px; padding: 10px; }
   .embed h1 { font-size: 17px; margin: 0 0 10px; padding-right: 36px; }
+  /* Docked panel on the order page (?dock=1): just the quote and the map, driven by the order page */
+  .dock .wrap { padding: 0; }
+  .dock .card { border: 0; border-radius: 0; padding: 10px 12px; }
+  .dock h1, .dock label, .dock #addrBox, .dock #addrHint, .dock #go, .dock #orderBtn, .dock #slRow { display: none !important; }
+  .dock #result { margin-top: 0; }
+  .dock .rate { font-size: 28px; }
+  .dock .row { padding: 3px 0; font-size: 12px; }
+  .dock .note { margin-top: 6px; padding: 5px 8px; font-size: 11px; }
+  .dock #mapBox .hint { display: none; }
+  #dockIdle { display: none; color: var(--muted); font-size: 12px; text-align: center; padding: 18px 8px; }
+  .dock #dockIdle { display: block; }
 </style>
 </head>
 <body>
@@ -66,12 +91,13 @@
     <div class="hint" id="addrHint">A street address gives the best figure. A suburb alone is measured to the centre of that area.</div>
     <button id="go" disabled>Loading maps…</button>
 
+    <div id="dockIdle">Cartage quote: waiting for the delivery address…</div>
     <div id="result">
       <div class="rate" id="rateText"></div>
       <div class="row"><span>Round trip</span><span id="rtKm"></span></div>
       <div class="row" id="slRow" style="display:none"><span>Straight line</span><span id="slKm"></span></div>
       <div class="row"><span>Distance band</span><span id="bandText"></span></div>
-      <div class="row"><span>Priced from</span><span id="basedOn"></span></div>
+      <div class="row" id="priced"><span>Priced from</span><span id="basedOn"></span></div>
       <div id="notes"></div>
       <div id="mapBox">
         <div id="map" role="img" aria-label="Map showing the delivery address against the delivery rings around the depot"></div>
@@ -96,7 +122,7 @@
   // ---- Map with delivery rings ----
   const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 }; // used if Google can't look up the depot address
   const RING_STEP_KM = 10;
-  const RING_MAX_KM = 100;
+  const RING_MAX_KM = 150;
 
   // ---- "Start order" button (pre-fills the Orders form) ----
   // Leave ORDER_FORM_URL empty to hide the button.
@@ -117,7 +143,13 @@
     { max: 70,  rate: 26.00 },
     { max: 80,  rate: 30.00 },
     { max: 90,  rate: 33.50 },
-    { max: 100, rate: 37.00 }
+    { max: 100, rate: 37.00 },
+    // Over 100 km round trip: not on the printed schedule, priced at the 100 km rate plus $3.50 per extra 10 km
+    { max: 110, rate: 40.50, extra: true },
+    { max: 120, rate: 44.00, extra: true },
+    { max: 130, rate: 47.50, extra: true },
+    { max: 140, rate: 51.00, extra: true },
+    { max: 150, rate: 54.50, extra: true }
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -131,7 +163,17 @@
   const EMBEDDED = (function () {
     try { return window.parent !== window && /(^|[?&])embed=1(&|$)/.test(location.search); } catch (e) { return false; }
   })();
+  const DOCK = EMBEDDED && /(^|[?&])dock=1(&|$)/.test(location.search);
   if (EMBEDDED) document.body.classList.add('embed');
+  if (DOCK) document.body.classList.add('dock');
+  let pendingReply = null; // dock mode: the request waiting for its answer
+  function afterQuote(status) {
+    $('dockIdle').style.display = 'none';
+    if (!pendingReply) return;
+    const r = pendingReply; pendingReply = null;
+    if (r.source) r.source.postMessage({ type: 'bwt-quote-result', id: r.id, text: r.text,
+      rate: status === 'OK' ? lastRate : null, status: status }, location.origin);
+  }
   let lastAddr = null; // address parts from the latest quote
   let lastRate = null; // band rate from the latest quote (null when outside the schedule)
 
@@ -251,7 +293,7 @@
 
   function showError(msg) {
     $('orderBtn').style.display = 'none';
-    result.style.display = 'block';
+    result.style.display = EMBEDDED ? 'flex' : 'block';
     $('rateText').textContent = '';
     $('rtKm').textContent = $('bandText').textContent = $('basedOn').textContent = '';
     notes.innerHTML = '';
@@ -262,7 +304,7 @@
   }
 
   function showQuote(rtKm, label, addr, areaOnly) {
-    result.style.display = 'block';
+    result.style.display = EMBEDDED ? 'flex' : 'block';
     notes.innerHTML = '';
     $('slRow').style.display = 'none';
     setOrderLink(addr, rtKm);
@@ -285,6 +327,9 @@
       rateEl.appendChild(s);
     }
     $('bandText').textContent = bandLabel(i);
+    if (BANDS[i].extra) {
+      addNote('Over 100 km round trip. This is not on the printed schedule: it is the 100 km rate plus $3.50 for each extra 10 km. Confirm on the order.', 'warn');
+    }
 
     // Close to a band edge? Google's road distance can differ slightly from the
     // schedule's, so flag it rather than quoting with false confidence.
@@ -333,10 +378,22 @@
     });
   }
 
+  // Fallback when the geocoder isn't available on the key: Places (New) text search
+  async function placeSearch(address) {
+    try {
+      const lib = await google.maps.importLibrary('places');
+      const res = await lib.Place.searchByText({ textQuery: address, fields: ['location'], maxResultCount: 1, region: 'nz' });
+      return res && res.places && res.places[0] ? toLatLng(res.places[0].location) : null;
+    } catch (e) { return null; }
+  }
+  async function locate(address) {
+    return (await geocode(address)) || (await placeSearch(address));
+  }
+
   function ensureMap() {
     if (!mapPromise) mapPromise = (async () => {
       try {
-        depotPos = (await geocode(DEPOT)) || DEPOT_FALLBACK;
+        depotPos = (await locate(DEPOT)) || DEPOT_FALLBACK;
         map = new google.maps.Map($('map'), {
           center: depotPos, zoom: 9, gestureHandling: 'cooperative',
           streetViewControl: false, fullscreenControl: false, mapTypeControl: false
@@ -373,7 +430,7 @@
   async function updateMap(destPromise) {
     const token = ++mapToken;
     const mapBox = $('mapBox');
-    mapBox.style.display = 'block'; // the map needs a visible box when it is first created
+    mapBox.style.display = EMBEDDED ? 'flex' : 'block'; // the map needs a visible box when it is first created
     const both = await Promise.all([ensureMap(), destPromise]);
     if (token !== mapToken) return; // a newer quote has taken over
     if (!both[0]) { mapBox.style.display = 'none'; return; }
@@ -431,22 +488,68 @@
         done();
         if (status !== 'OK') {
           showError('Google could not calculate this (' + status + '). If it keeps happening, check the API key and its allowed websites.');
+          afterQuote(status);
           return;
         }
         if (el.status !== 'OK') {
           showError("Couldn't find that address. Try adding the suburb or town.");
+          afterQuote('NOT_FOUND');
           return;
         }
         const addr = sel
           ? addressFromComponents(sel.components, areaOnly)
           : parseAddress((response.destinationAddresses || [])[0], areaOnly);
         showQuote((el.distance.value / 1000) * 2, typed, addr, areaOnly);
-        updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : geocode(textDest));
+        afterQuote(lastRate === null ? 'OUTSIDE' : 'OK');
+        updateMap(sel && sel.location ? Promise.resolve(toLatLng(sel.location)) : locate(textDest));
       });
     };
 
     run(sel && sel.id ? { placeId: sel.id } : textDest, !!(sel && sel.id));
   }
+
+  // ---- Background mode (?auto=1): the order page's pop-up script asks this page for a
+  // rate for a typed address, using the same BANDS as above, and gets the answer back. ----
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin) return;
+    const d = e.data;
+    if (!d || d.type !== 'bwt-quote-request' || !d.text) return;
+    const reply = (rate, status) => {
+      if (e.source) e.source.postMessage({ type: 'bwt-quote-result', id: d.id, rate: rate, status: status, text: d.text }, location.origin);
+    };
+    let waited = 0;
+    if (DOCK) {
+      // Show the quote and map for this address, then report the rate back
+      const run = () => {
+        if (!(window.google && google.maps && google.maps.DistanceMatrixService)) {
+          if ((waited += 250) > 15000) { reply(null, 'NOT_LOADED'); return; }
+          setTimeout(run, 250); return;
+        }
+        pendingReply = { id: d.id, text: d.text, source: e.source };
+        selected = null; input.value = d.text;
+        calculate();
+      };
+      run();
+      return;
+    }
+    const attempt = () => {
+      if (!(window.google && google.maps && google.maps.DistanceMatrixService)) {
+        if ((waited += 250) > 15000) { reply(null, 'NOT_LOADED'); return; }
+        setTimeout(attempt, 250);
+        return;
+      }
+      new google.maps.DistanceMatrixService().getDistanceMatrix({
+        origins: [DEPOT], destinations: [d.text], travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.METRIC
+      }, (response, status) => {
+        const el = status === 'OK' ? response.rows[0].elements[0] : null;
+        if (!el || el.status !== 'OK') { reply(null, status === 'OK' ? el.status : status); return; }
+        const bi = bandIndex((el.distance.value / 1000) * 2);
+        reply(bi === -1 ? null : BANDS[bi].rate, bi === -1 ? 'OUTSIDE' : 'OK');
+      });
+    };
+    attempt();
+  });
 
   go.addEventListener('click', calculate);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculate(); });
@@ -463,6 +566,7 @@
   }
 
   async function initAutocomplete() {
+    if (DOCK) return; // the order page supplies the address
     try {
       let lib = null;
       if (google.maps.importLibrary) lib = await google.maps.importLibrary('places');

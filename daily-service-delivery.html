@@ -19,17 +19,6 @@ body {
     box-sizing: border-box;
 }
 
-/* Mobile — the wider desktop padding wastes too much of a narrow
-   screen, so shrink it right down here instead */
-@media (max-width: 768px) {
-    body {
-        padding: 100px 4px 20px 4px;
-    }
-    .form-wrap {
-        padding: 0;
-    }
-}
-
 .back-link {
     position: fixed;
     top: 20px;
@@ -62,6 +51,20 @@ body {
     padding: 0 20px;
     box-sizing: border-box;
 }
+
+/* Mobile — the wider desktop padding wastes too much of a narrow
+   screen, so shrink it right down here instead.
+   NOTE: this block must stay BELOW the .form-wrap rule above. When two
+   rules are equally specific the later one wins, so if this sits first
+   the form keeps its 20px side padding on phones. */
+@media (max-width: 768px) {
+    body {
+        padding: 100px 4px 20px 4px;
+    }
+    .form-wrap {
+        padding: 0;
+    }
+}
 </style>
 </head>
 
@@ -78,7 +81,7 @@ body {
 <!-- FAF distance calculator — reads Start Location and Address once
      they appear above, calculates driving distance via Google, and
      writes it into the Distance (KM) field -->
-<script src="js/bulk-water-faf-distance.js?v=3"></script>
+<script src="js/bulk-water-faf-distance.js?v=4"></script>
 
 </body>
 </html>
