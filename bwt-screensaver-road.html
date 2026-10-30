@@ -1020,13 +1020,30 @@
   }
 
   // ---------- road signs ----------
+  function spots(x, top, w, h, night, k) {                         // two spotlights on short arms above a sign, lighting its face at night
+    [0.25, 0.75].forEach(f => {
+      const cx = x + w * f, ly = top - 16 * k;
+      ctx.strokeStyle = '#2b2f36'; ctx.lineWidth = 2.5 * k; ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, ly + 4 * k); ctx.stroke();
+      ctx.fillStyle = '#1b1e23'; ctx.beginPath(); ctx.roundRect(cx - 9 * k, ly - 4 * k, 18 * k, 9 * k, 3 * k); ctx.fill();
+      if (night > 0.04) {
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createLinearGradient(0, ly, 0, top + h); g.addColorStop(0, 'rgba(255,240,190,' + (0.55 * night).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,240,190,' + (0.10 * night).toFixed(3) + ')');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx - 5 * k, ly + 4 * k); ctx.lineTo(cx + 5 * k, ly + 4 * k); ctx.lineTo(cx + w * 0.34, top + h); ctx.lineTo(cx - w * 0.34, top + h); ctx.closePath(); ctx.fill();
+        const b = ctx.createRadialGradient(cx, ly + 4 * k, 0, cx, ly + 4 * k, 16 * k); b.addColorStop(0, 'rgba(255,245,200,' + night.toFixed(3) + ')'); b.addColorStop(1, 'rgba(255,245,200,0)');
+        ctx.fillStyle = b; ctx.beginPath(); ctx.arc(cx, ly + 4 * k, 16 * k, 0, 7); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    });
+  }
   function drawSigns(light) {
     const baseY = roadTop() + 3 * s;
     for (const sg of signs) {
-      ctx.save(); ctx.translate(0, hillY(sg.x + (sg.board ? 180 : 115) * s));
+      if (!sg.board && !sg.w) { ctx.font = `bold ${29 * s}px Arial, sans-serif`; sg.w = Math.max(230 * s, ctx.measureText(sg.name.toUpperCase()).width + 48 * s); }   // wide enough for the longest name
+      const mid = sg.board ? 180 * s : sg.w / 2;
+      ctx.save(); ctx.translate(0, hillY(sg.x + mid));
       if (windAmt > 0.02 || sg.flat) {                        // a strong gust blows the sign right over; once flat it stays down until it scrolls off screen
         let fall = smooth(0.3, 0.85, windAmt); if (fall > 0.97) sg.flat = true; if (sg.flat) fall = 1;
-        const px = sg.x + (sg.board ? 180 : 115) * s;
+        const px = sg.x + mid;
         ctx.translate(px, baseY);
         ctx.transform(1, 0, -0.45 * Math.sin(fall * Math.PI) - 0.1 * windAmt, 1, 0, 0);          // leans over as it goes...
         ctx.scale(1 + 0.12 * fall, Math.max(0.05, Math.cos(fall * 1.5)));                         // ...and ends up flat on the ground
@@ -1036,25 +1053,27 @@
         const bw = 360 * s, bh = bw * (logoImg.naturalHeight && logoImg.naturalWidth ? logoImg.naturalHeight / logoImg.naturalWidth : .22) + 16 * s, bx = sg.x, bt = baseY - 175 * s;
         ctx.fillStyle = rgb(mix([120, 120, 120], [50, 55, 66], light.night));
         ctx.fillRect(bx + bw * .22, bt + bh, 8 * s, baseY - bt - bh); ctx.fillRect(bx + bw * .74, bt + bh, 8 * s, baseY - bt - bh);
-        ctx.fillStyle = rgb(mix([236, 240, 244], [70, 76, 90], light.night)); ctx.beginPath(); ctx.roundRect(bx, bt, bw, bh, 6 * s); ctx.fill();
+        ctx.fillStyle = rgb(mix([236, 240, 244], [150, 156, 170], light.night)); ctx.beginPath(); ctx.roundRect(bx, bt, bw, bh, 6 * s); ctx.fill();
         if (logoImg.complete && logoImg.naturalWidth) {
-          ctx.globalAlpha = 1 - light.night * .45; ctx.drawImage(logoImg, bx + 8 * s, bt + 8 * s, bw - 16 * s, bh - 16 * s); ctx.globalAlpha = 1;
+          ctx.globalAlpha = 1 - light.night * .2; ctx.drawImage(logoImg, bx + 8 * s, bt + 8 * s, bw - 16 * s, bh - 16 * s); ctx.globalAlpha = 1;
         }
+        spots(bx, bt, bw, bh, light.night, s);
         ctx.restore(); continue;
       }
-      const w = 230 * s, h = 76 * s, x = sg.x, top = baseY - 150 * s;
+      const w = sg.w, h = 76 * s, x = sg.x, top = baseY - 150 * s;
       ctx.fillStyle = rgb(mix([150, 150, 150], [55, 60, 70], light.night));
       ctx.fillRect(x + w / 2 - 4 * s, top + h, 8 * s, baseY - top - h);
-      ctx.fillStyle = rgb(mix([10, 112, 62], [6, 50, 34], light.night));
+      ctx.fillStyle = rgb(mix([10, 112, 62], [12, 92, 54], light.night));
       ctx.beginPath(); ctx.roundRect(x, top, w, h, 8 * s); ctx.fill();
       ctx.strokeStyle = rgb(mix([255, 255, 255], [160, 170, 185], light.night)); ctx.lineWidth = 3 * s;
       ctx.beginPath(); ctx.roundRect(x + 5 * s, top + 5 * s, w - 10 * s, h - 10 * s, 5 * s); ctx.stroke();
-      ctx.fillStyle = rgb(mix([255, 255, 255], [190, 200, 215], light.night));
+      ctx.fillStyle = rgb(mix([255, 255, 255], [238, 242, 248], light.night));
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = `bold ${(sg.name.length > 12 ? 24 : 29) * s}px Arial, sans-serif`;
+      ctx.font = `bold ${29 * s}px Arial, sans-serif`;
       ctx.fillText(sg.name.toUpperCase(), x + w / 2, top + h * .40);
       ctx.font = `${15 * s}px Arial, sans-serif`;
       ctx.fillText('Bulk water delivered', x + w / 2, top + h * .74);
+      spots(x, top, w, h, light.night, s);
       ctx.restore();
     }
   }
