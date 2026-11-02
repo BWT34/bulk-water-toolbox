@@ -3,7 +3,29 @@
 
     // ---- Config ----
     const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk';
-    const ORIGIN = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+    const START_LABEL = 'Start Location';   // dropdown on the order form
+    const DEPOTS = {
+        'upper hutt': '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand',
+        'palmerston north': '14a Savage Crescent, West End, Palmerston North, New Zealand'
+    };
+    const DEFAULT_DEPOT = 'upper hutt';
+
+    // Which depot the truck starts from: read the Start Location dropdown by its label
+    function depotKey() {
+        const target = START_LABEL.toLowerCase();
+        for (const label of document.querySelectorAll('label.cog-label, label')) {
+            if ((label.textContent || '').replace(/[\*:\s]+$/, '').trim().toLowerCase() !== target) continue;
+            const forId = label.getAttribute('for');
+            let el = forId ? document.getElementById(forId) : null;
+            if (el && !el.matches('input, select')) el = el.querySelector('input, select');
+            if (!el) { const box = label.closest('div'); el = box && box.querySelector('input, select'); }
+            if (!el) continue;
+            const text = ((el.tagName === 'SELECT' && el.options[el.selectedIndex]) ? el.options[el.selectedIndex].text : el.value || '').trim().toLowerCase();
+            for (const name in DEPOTS) if (text.includes(name)) return name;
+        }
+        return DEFAULT_DEPOT;
+    }
+    const originAddress = () => DEPOTS[depotKey()];
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
 
     // ---- Responsive styling ----
@@ -155,7 +177,7 @@
         card.style.borderLeft = `4px solid ${statusColor}`;
 
         card.innerHTML = `
-            <div class="bwt-route-sub">🚚 Depot → </div>
+            <div class="bwt-route-sub">🚚 ${depotKey() === 'palmerston north' ? 'Palmerston North' : 'Upper Hutt'} depot → </div>
             <div class="bwt-route-toprow">
                 <div class="bwt-route-label">${addressLabel}</div>
                 <div class="bwt-route-status" style="color:${statusColor};">${statusLabel}</div>
@@ -186,7 +208,7 @@
             const iframe = document.createElement('iframe');
             iframe.loading = 'lazy';
             iframe.referrerPolicy = 'no-referrer-when-downgrade';
-            iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
+            iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(originAddress())}&destination=${encodeURIComponent(address.full)}&mode=driving`;
             card.appendChild(iframe);
         }
 
@@ -198,7 +220,7 @@
             try {
                 if (!google.maps.DirectionsService) { useEmbed(); return; }
                 new google.maps.DirectionsService().route({
-                    origin: ORIGIN,
+                    origin: originAddress(),
                     destination: address.full,
                     travelMode: 'DRIVING'
                 }, (result, status) => {
@@ -280,7 +302,7 @@
         const service = new google.maps.DistanceMatrixService();
 
         service.getDistanceMatrix({
-            origins: [ORIGIN],
+            origins: [originAddress()],
             destinations: [address.full],
             travelMode: 'DRIVING',
             drivingOptions: {
@@ -334,9 +356,10 @@
 
             if (!address) return; // nothing typed yet, stay quiet
 
-            if (address.full === lastLookedUp) return; // unchanged, skip
+            const lookupKey = address.full + '|' + depotKey();
+            if (lookupKey === lastLookedUp) return; // unchanged (address and depot), skip
 
-            lastLookedUp = address.full;
+            lastLookedUp = lookupKey;
             ensureMapsLoaded(() => loadRoute(address));
 
         }, 1200);
@@ -355,6 +378,7 @@
         });
 
         listenersAttached = true;
+        setInterval(handleAddressChange, 1000);   // the Start Location dropdown doesn't fire typing events
 
         panel.innerHTML = '';
         panel.appendChild(buildMessageCard('Waiting for delivery address…'));
