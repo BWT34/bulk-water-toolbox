@@ -378,7 +378,7 @@
         });
 
         listenersAttached = true;
-        setInterval(handleAddressChange, 1000);   // the Start Location dropdown doesn't fire typing events
+        setInterval(handleAddressChange, 2000);   // must be longer than the 1.2 s debounce, or the debounce never completes   // the Start Location dropdown doesn't fire typing events
 
         panel.innerHTML = '';
         panel.appendChild(buildMessageCard('Waiting for delivery address…'));
