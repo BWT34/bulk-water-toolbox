@@ -1,6 +1,6 @@
 (function () {
     if (document.getElementById('bwt-quote-popup-btn')) return;
-    const SCRIPT_VERSION = 'v10';
+    const SCRIPT_VERSION = 'v11';
     console.log('BWT quote pop-up script ' + SCRIPT_VERSION + ' loaded');
 
     // ---- Config ----
@@ -14,6 +14,12 @@
         : new URL(QUOTE_PAGE, location.href).href;       // fallback: same folder as the page
     const ADDRESS_LEGEND_MATCH = /delivery address/i; // the Delivery Address field on the order form
     const RATE_LABEL = 'FAF Estimate';                // label of the number field that receives the quoted rate
+    const START_LABEL = 'Start Location';             // dropdown on the order form: where the truck starts from
+    const DEPOTS = {                                   // dropdown choice -> key + real start address sent to the quote page
+        'upper hutt':       { key: 'upper-hutt',       address: '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand' },
+        'palmerston north': { key: 'palmerston-north', address: '14a Savage Crescent, West End, Palmerston North, New Zealand' }
+    };
+    const DEFAULT_DEPOT = DEPOTS['upper hutt'];
 
     // ---- Button + pop-up ----
     const btn = document.createElement('button');
@@ -60,16 +66,19 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
-    let frame = null;
+    let frame = null, frameDepot = null;
 
     function openQuote() {
         // Load the quote page only when first opened, so Google Maps isn't
         // loaded a second time unless someone actually asks for a quote.
+        const dep = currentDepot();
+        if (frame && frameDepot !== dep.key) { frame.src = QUOTE_URL + '?embed=1&depot=' + dep.key; frameDepot = dep.key; }
         if (!frame) {
+            frameDepot = dep.key;
             frame = document.createElement('iframe');
             frame.id = 'bwt-quote-frame';
             frame.title = 'Cartage quote';
-            frame.src = QUOTE_URL + '?embed=1';
+            frame.src = QUOTE_URL + '?embed=1&depot=' + dep.key;
             frame.style.cssText = 'width:100%;height:100%;border:0;display:block;';
             panel.appendChild(frame);
         }
@@ -179,6 +188,17 @@
         return null;
     }
 
+    // The depot currently chosen in the Start Location dropdown (falls back to Upper Hutt)
+    function currentDepot() {
+        const el = findInputByLabelText(START_LABEL);
+        let text = '';
+        if (el) text = (el.tagName === 'SELECT' && el.options[el.selectedIndex]) ? el.options[el.selectedIndex].text : (el.value || '');
+        const key = text.trim().toLowerCase();
+        if (DEPOTS[key]) return DEPOTS[key];
+        for (const name in DEPOTS) if (key.includes(name)) return DEPOTS[name];
+        return DEFAULT_DEPOT;
+    }
+
     // rate is a number, or null when the address is outside the rate schedule.
     // Returns true if the field was found and set.
     function fillRate(rate) {
@@ -204,7 +224,7 @@
         // remember what we wrote, so the automatic quote below doesn't redo it
         autoLastSet = rate === null ? '' : rate.toFixed(2);
         autoLastText = currentAddressText();
-        if (autoLastText) { autoReqId++; autoNoFillId = autoReqId; autoSend({ type: 'bwt-quote-request', id: autoReqId, text: autoLastText }); }
+        if (autoLastText) { autoReqId++; autoNoFillId = autoReqId; autoSendRequest(autoReqId, autoLastText); }
         closeQuote();
 
         if (rate === null) {
@@ -233,8 +253,10 @@
         const vals = Array.from(fs.querySelectorAll('input.el-input__inner, input[type="text"]'))
             .slice(0, 4).map((i) => (i.value || '').trim());
         if (vals.length < 3 || !vals[0] || !vals[2]) return ''; // need street and city
-        return vals.filter(Boolean).concat('New Zealand').join(', ');
+        return vals.filter(Boolean).concat('New Zealand').join(', ') + KEY_SEP + currentDepot().key;   // address + depot, so a depot change re-quotes
     }
+    const KEY_SEP = '\u0001';
+    const addrOf = (k) => (k || '').split(KEY_SEP)[0];
 
     // The helper page is shown as a small panel at the bottom right (above the route
     // widget) on wide screens, and kept off-screen on phones. It is the one place
@@ -274,6 +296,13 @@
     window.addEventListener('resize', layoutDock);
     setInterval(layoutDock, 1000); // the route widget grows and shrinks as it loads
 
+    let autoReqDepot = '';
+    function autoSendRequest(id, key) {
+        const dep = currentDepot();
+        autoReqDepot = dep.key;
+        autoSend({ type: 'bwt-quote-request', id: id, text: addrOf(key), depot: dep.key, depotAddress: dep.address });
+    }
+
     function autoSend(msg) {
         if (!autoFrame) {
             const dock = document.createElement('div');
@@ -291,7 +320,7 @@
     }
 
     function applyAutoRate(rate, status, text) {
-        if (text !== currentAddressText()) return; // address changed again while waiting
+        if (addrOf(text) !== addrOf(currentAddressText()) || autoReqDepot !== currentDepot().key) return; // address or depot changed again while waiting
         const input = findInputByLabelText(RATE_LABEL);
         if (!input) return;
         const current = (input.value || '').replace(/[^0-9.\-]/g, '');
@@ -316,11 +345,11 @@
         if (!d || d.type !== 'bwt-quote-result' || d.id !== autoReqId) return;
         autoPending = 0;
         if (d.id === autoNoFillId) return; // pop-up already filled the field; this was only to update the panel
-        applyAutoRate(typeof d.rate === 'number' ? d.rate : null, d.status, d.text || autoLastText);
+        applyAutoRate(typeof d.rate === 'number' ? d.rate : null, d.status, d.text || addrOf(autoLastText));
     });
 
     if (AUTO_FILL) {
-        autoSend({ type: 'bwt-quote-hello' }); // creates the panel straight away (shows 'waiting for the delivery address')
+        autoSend({ type: 'bwt-quote-hello', depot: currentDepot().key, depotAddress: currentDepot().address }); // creates the panel straight away (shows 'waiting for the delivery address')
         setInterval(() => {
             const text = currentAddressText();
             const settled = text && text === autoPrevTick; // unchanged for one whole tick
@@ -330,7 +359,7 @@
             autoLastText = text;
             autoReqId++;
             autoPending = autoReqId;
-            autoSend({ type: 'bwt-quote-request', id: autoReqId, text: text });
+            autoSendRequest(autoReqId, text);
         }, 1500);
     }
 
