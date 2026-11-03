@@ -11,16 +11,36 @@
     const DEFAULT_DEPOT = 'upper hutt';
 
     // Which depot the truck starts from: read the Start Location dropdown by its label
+    // Robust lookup of a field's control by its label (same logic the quote pop-up uses):
+    // follow the label's "for", else the first visible input in the label's own field block.
+    const START_FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select';
+    function startControlForLabel(label) {
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(START_FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(START_FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(START_FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
+    }
+    function startControlText(el) {
+        if (!el) return '';
+        if (el.tagName === 'SELECT') return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        return el.value || '';
+    }
+
     function depotKey() {
         const target = START_LABEL.toLowerCase();
         for (const label of document.querySelectorAll('label.cog-label, label')) {
             if ((label.textContent || '').replace(/[\*:\s]+$/, '').trim().toLowerCase() !== target) continue;
-            const forId = label.getAttribute('for');
-            let el = forId ? document.getElementById(forId) : null;
-            if (el && !el.matches('input, select')) el = el.querySelector('input, select');
-            if (!el) { const box = label.closest('div'); el = box && box.querySelector('input, select'); }
-            if (!el) continue;
-            const text = ((el.tagName === 'SELECT' && el.options[el.selectedIndex]) ? el.options[el.selectedIndex].text : el.value || '').trim().toLowerCase();
+            const text = startControlText(startControlForLabel(label)).trim().toLowerCase();
             for (const name in DEPOTS) if (text.includes(name)) return name;
         }
         return DEFAULT_DEPOT;
