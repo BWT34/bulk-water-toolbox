@@ -208,7 +208,7 @@
             console.log('BWT FAF: both Start Location and Address fields found, watching for changes.');
             // The dropdown doesn't fire normal input events, so check it once a second
             // (handleAddressChange only recalculates when the start or end actually changed)
-            setInterval(handleAddressChange, 1000);
+            setInterval(handleAddressChange, 2000);   // must be longer than the 1.2 s debounce, or the debounce never completes
             // Run once immediately in case fields are already filled
             // (e.g. Order Lookup already populated the address)
             handleAddressChange();
