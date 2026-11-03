@@ -54,28 +54,44 @@
     }
 
     // ---- Start Location dropdown: read the selected choice and map it to a depot address ----
+    // Robust lookup of a field's control by its label (same logic the quote pop-up uses):
+    // follow the label's "for", else the first visible input in the label's own field block.
+    const START_FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select';
+    function startControlForLabel(label) {
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(START_FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(START_FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(START_FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
+    }
+    function startControlText(el) {
+        if (!el) return '';
+        if (el.tagName === 'SELECT') return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        return el.value || '';
+    }
+
     function findStartControl() {
-        const direct = findInputByLabelText(START_LABEL_TEXT);
-        if (direct) return direct;
         const target = normalizeLabelText(START_LABEL_TEXT);
         for (const label of document.querySelectorAll('label.cog-label')) {
             if (normalizeLabelText(label.textContent) !== target) continue;
-            const box = label.closest('.cog-field, .cog-field--choice, div');
-            const el = box && box.querySelector('input.el-input__inner, select, input');
+            const el = startControlForLabel(label);
             if (el) return el;
         }
         return null;
     }
 
     function getStartAddress() {
-        const el = findStartControl();
-        if (!el) return null;
-        let text = '';
-        if (el.tagName === 'SELECT') text = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
-        else text = el.value || '';
-        const key = text.trim().toLowerCase();
+        const key = startControlText(findStartControl()).trim().toLowerCase();
         if (DEPOTS[key]) return DEPOTS[key];
-        // tolerate extra wording, e.g. "Palmerston North depot"
         for (const name in DEPOTS) if (key.includes(name)) return DEPOTS[name];
         return null;
     }
