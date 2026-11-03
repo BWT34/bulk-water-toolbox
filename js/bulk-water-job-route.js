@@ -36,14 +36,31 @@
         return el.value || '';
     }
 
+    let lastDepotLogged = null;
     function depotKey() {
+        const norm = (t) => (t || '').replace(/\s+/g, ' ').replace(/[\*:\s]+$/, '').trim().toLowerCase();
         const target = START_LABEL.toLowerCase();
-        for (const label of document.querySelectorAll('label.cog-label, label')) {
-            if ((label.textContent || '').replace(/[\*:\s]+$/, '').trim().toLowerCase() !== target) continue;
-            const text = startControlText(startControlForLabel(label)).trim().toLowerCase();
-            for (const name in DEPOTS) if (text.includes(name)) return name;
+        const labels = Array.from(document.querySelectorAll('label.cog-label, label'));
+        const pick = (text) => { for (const name in DEPOTS) if (text.includes(name)) return name; return null; };
+        let found = null, how = '';
+        // 1. by label: exact match first, then "starts with" (copes with extra text such as "Required")
+        outer: for (const exact of [true, false]) {
+            for (const label of labels) {
+                const t = norm(label.textContent);
+                if (exact ? t !== target : t.indexOf(target) !== 0) continue;
+                found = pick(startControlText(startControlForLabel(label)).trim().toLowerCase());
+                if (found) { how = 'label'; break outer; }
+            }
         }
-        return DEFAULT_DEPOT;
+        // 2. fallback: any read-only dropdown box (or real select) currently showing a depot name
+        if (!found) {
+            for (const el of document.querySelectorAll('input[readonly], select')) {
+                const t = startControlText(el).trim().toLowerCase();
+                if (DEPOTS[t]) { found = t; how = 'dropdown scan'; break; }
+            }
+        }
+        if (found !== lastDepotLogged) { console.log('BWT route: start depot =', found || ('(not found, using ' + DEFAULT_DEPOT + ')'), how ? '[' + how + ']' : '', '| labels seen:', labels.map(l => norm(l.textContent)).filter(Boolean).slice(0, 12)); lastDepotLogged = found; }
+        return found || DEFAULT_DEPOT;
     }
     const originAddress = () => DEPOTS[depotKey()];
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
