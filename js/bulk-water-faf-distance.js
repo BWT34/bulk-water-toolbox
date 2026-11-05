@@ -3,7 +3,12 @@
 
     // ---- Config ----
     const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk';
-    const START_LEGEND_MATCH = /start location/i;
+    const START_LABEL_TEXT = 'Start Location'; // dropdown (Choice) field, matched by label
+    // Dropdown choice -> real start address used for the distance calculation
+    const DEPOTS = {
+        'upper hutt': '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand',
+        'palmerston north': '14a Savage Crescent, West End, Palmerston North, New Zealand'
+    };
     const END_LABEL_TEXT = 'Address'; // single-line field, matched by label — not a fieldset
     const DISTANCE_LABEL_TEXT = 'Distance (KM)';
 
@@ -21,30 +26,6 @@
 
     function hideStatus() {
         panel.style.display = 'none';
-    }
-
-    // ---- Find an address fieldset by its legend text, same
-    // approach that already worked for the delivery-order page ----
-    function getAddressFromFieldset(legendMatch) {
-
-        const fieldsets = document.querySelectorAll('fieldset');
-
-        for (const fs of fieldsets) {
-            const legend = fs.querySelector('legend');
-            if (!legend || !legendMatch.test(legend.textContent.trim())) continue;
-
-            const inputs = fs.querySelectorAll('input.el-input__inner, input[type="text"]');
-            const parts = Array.from(inputs)
-                .map(i => (i.value || '').trim())
-                .filter(v => v.length > 0);
-
-            if (parts.length > 0) {
-                return parts.join(', ') + ', New Zealand';
-            }
-        }
-
-        return null;
-
     }
 
     // ---- Find any field's actual input by its visible label text
@@ -70,6 +51,49 @@
 
         return null;
 
+    }
+
+    // ---- Start Location dropdown: read the selected choice and map it to a depot address ----
+    // Robust lookup of a field's control by its label (same logic the quote pop-up uses):
+    // follow the label's "for", else the first visible input in the label's own field block.
+    const START_FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select';
+    function startControlForLabel(label) {
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(START_FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(START_FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(START_FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
+    }
+    function startControlText(el) {
+        if (!el) return '';
+        if (el.tagName === 'SELECT') return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        return el.value || '';
+    }
+
+    function findStartControl() {
+        const target = normalizeLabelText(START_LABEL_TEXT);
+        for (const label of document.querySelectorAll('label.cog-label')) {
+            if (normalizeLabelText(label.textContent) !== target) continue;
+            const el = startControlForLabel(label);
+            if (el) return el;
+        }
+        return null;
+    }
+
+    function getStartAddress() {
+        const key = startControlText(findStartControl()).trim().toLowerCase();
+        if (DEPOTS[key]) return DEPOTS[key];
+        for (const name in DEPOTS) if (key.includes(name)) return DEPOTS[name];
+        return null;
     }
 
     function getEndAddress() {
@@ -164,7 +188,7 @@
 
         debounceTimer = setTimeout(() => {
 
-            const start = getAddressFromFieldset(START_LEGEND_MATCH);
+            const start = getStartAddress();
             const end = getEndAddress();
 
             if (!start || !end) return;
@@ -176,28 +200,6 @@
             ensureMapsLoaded(() => calculateAndFillDistance(start, end));
 
         }, 1200);
-
-    }
-
-    function attachListenersToFieldset(legendMatch) {
-
-        const fieldsets = document.querySelectorAll('fieldset');
-
-        for (const fs of fieldsets) {
-            const legend = fs.querySelector('legend');
-            if (!legend || !legendMatch.test(legend.textContent.trim())) continue;
-
-            const inputs = fs.querySelectorAll('input.el-input__inner, input[type="text"]');
-            inputs.forEach(input => {
-                input.addEventListener('input', handleAddressChange);
-                input.addEventListener('blur', handleAddressChange);
-            });
-
-            return true;
-
-        }
-
-        return false;
 
     }
 
@@ -215,11 +217,14 @@
 
     function watchForFields() {
 
-        const startFound = attachListenersToFieldset(START_LEGEND_MATCH);
+        const startFound = !!findStartControl();
         const endFound = attachListenerToLabeledInput(END_LABEL_TEXT);
 
         if (startFound && endFound) {
             console.log('BWT FAF: both Start Location and Address fields found, watching for changes.');
+            // The dropdown doesn't fire normal input events, so check it once a second
+            // (handleAddressChange only recalculates when the start or end actually changed)
+            setInterval(handleAddressChange, 2000);   // must be longer than the 1.2 s debounce, or the debounce never completes
             // Run once immediately in case fields are already filled
             // (e.g. Order Lookup already populated the address)
             handleAddressChange();

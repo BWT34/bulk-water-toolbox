@@ -68,6 +68,7 @@
   /* Docked panel on the order page (?dock=1): just the quote and the map, driven by the order page */
   .dock .wrap { padding: 0; }
   .dock .card { border: 0; border-radius: 0; padding: 10px 12px; }
+  .embed #depotRow, .dock #depotRow { display: none !important; }
   .dock h1, .dock label, .dock #addrBox, .dock #addrHint, .dock #go, .dock #orderBtn, .dock #slRow { display: none !important; }
   .dock #result { margin-top: 0; }
   .dock .rate { font-size: 28px; }
@@ -81,9 +82,16 @@
 <body>
 <div class="wrap">
   <h1>Cartage Quote Estimator</h1>
-  <p class="sub">Indicative cartage rate from the yard at 34 Montgomery Crescent, based on round-trip road distance.</p>
+  <p class="sub">Indicative cartage rate from the <span id="subDepot">Upper Hutt yard (34 Montgomery Crescent)</span>, based on round-trip road distance.</p>
 
   <div class="card">
+    <div id="depotRow" style="margin-bottom:12px">
+      <label for="depotSel">Start location (depot)</label>
+      <select id="depotSel" style="width:100%;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)">
+        <option value="upper-hutt">Upper Hutt</option>
+        <option value="palmerston-north">Palmerston North</option>
+      </select>
+    </div>
     <label for="addr">Delivery address, or suburb / town</label>
     <div id="addrBox">
       <input id="addr" type="text" autocomplete="off" placeholder="e.g. 25 Example Rd, Mangaroa  or  Whitemans Valley">
@@ -114,13 +122,21 @@
 (function () {
   // ---- Config ----
   const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk'; // <-- paste the current restricted key (must allow this page's domain)
-  const DEPOT = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+  // Depots (start points). The order page's Start Location dropdown picks one; the same rate bands apply to both.
+  const DEPOTS = {
+    'upper-hutt': { name: 'Upper Hutt yard (34 Montgomery Crescent)', short: 'Depot, 34 Montgomery Crescent',
+      address: '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand', fallback: { lat: -41.1290, lng: 175.0560 } },
+    'palmerston-north': { name: 'Palmerston North yard (14a Savage Crescent)', short: 'Depot, 14a Savage Crescent',
+      address: '14a Savage Crescent, West End, Palmerston North, New Zealand', fallback: { lat: -40.3640, lng: 175.5950 } }
+  };
+  let depotKey = 'upper-hutt';
+  let DEPOT = DEPOTS[depotKey].address;
   const RATE_UNIT = '';  // e.g. 'per load' once confirmed (shown beside the rate)
   const RATE_NOTE = '';  // e.g. '+ GST' or 'incl. GST' once confirmed
   const EDGE_MARGIN_KM = 2; // warn when within this distance of a band edge
 
   // ---- Map with delivery rings ----
-  const DEPOT_FALLBACK = { lat: -41.1290, lng: 175.0560 }; // used if Google can't look up the depot address
+  let DEPOT_FALLBACK = DEPOTS[depotKey].fallback; // used if Google can't look up the depot address
   const RING_STEP_KM = 10;
   const RING_MAX_KM = 150;
 
@@ -399,7 +415,7 @@
           streetViewControl: false, fullscreenControl: false, mapTypeControl: false
         });
         new google.maps.Marker({
-          position: depotPos, map: map, title: 'Depot, 34 Montgomery Crescent',
+          position: depotPos, map: map, title: DEPOTS[depotKey].short,
           icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#475569', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
         });
         const kmPerDegLat = 111.32;
@@ -513,6 +529,7 @@
   window.addEventListener('message', (e) => {
     if (e.origin !== location.origin) return;
     const d = e.data;
+    if (d && d.depot) setDepot(d.depot);   // the order page says which depot the truck starts from
     if (!d || d.type !== 'bwt-quote-request' || !d.text) return;
     const reply = (rate, status) => {
       if (e.source) e.source.postMessage({ type: 'bwt-quote-result', id: d.id, rate: rate, status: status, text: d.text }, location.origin);
@@ -550,6 +567,26 @@
     };
     attempt();
   });
+
+  // Switch start location. Returns true if it actually changed.
+  function setDepot(key) {
+    const d = DEPOTS[key];
+    if (!d || key === depotKey) return false;
+    depotKey = key; DEPOT = d.address; DEPOT_FALLBACK = d.fallback;
+    $('subDepot').textContent = d.name;
+    $('depotSel').value = key;
+    mapToken++; mapPromise = null; map = null; pin = line = null;   // rebuild the rings around the new depot
+    $('map').innerHTML = '';
+    return true;
+  }
+  $('depotSel').addEventListener('change', () => {
+    setDepot($('depotSel').value);
+    if (result.style.display !== 'none' && (selected || getTyped())) calculate();   // re-quote from the new depot
+  });
+  (function () {                                                   // ?depot=palmerston-north from the order page pop-up
+    const m = location.search.match(/[?&]depot=([\w-]+)/);
+    if (m) setDepot(m[1]);
+  })();
 
   go.addEventListener('click', calculate);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') calculate(); });

@@ -3,7 +3,66 @@
 
     // ---- Config ----
     const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk';
-    const ORIGIN = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+    const START_LABEL = 'Start Location';   // dropdown on the order form
+    const DEPOTS = {
+        'upper hutt': '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand',
+        'palmerston north': '14a Savage Crescent, West End, Palmerston North, New Zealand'
+    };
+    const DEFAULT_DEPOT = 'upper hutt';
+
+    // Which depot the truck starts from: read the Start Location dropdown by its label
+    // Robust lookup of a field's control by its label (same logic the quote pop-up uses):
+    // follow the label's "for", else the first visible input in the label's own field block.
+    const START_FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select';
+    function startControlForLabel(label) {
+        const forId = label.getAttribute('for');
+        const linked = forId ? document.getElementById(forId) : null;
+        if (linked) {
+            if (linked.matches(START_FIELD_SELECTOR)) return linked;
+            const inner = linked.querySelector(START_FIELD_SELECTOR);
+            if (inner) return inner;
+        }
+        let box = label.parentElement;
+        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
+            if (box.querySelectorAll('label.cog-label').length > 1) break;
+            const found = box.querySelector(START_FIELD_SELECTOR);
+            if (found) return found;
+        }
+        return null;
+    }
+    function startControlText(el) {
+        if (!el) return '';
+        if (el.tagName === 'SELECT') return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        return el.value || '';
+    }
+
+    let lastDepotLogged = null;
+    function depotKey() {
+        const norm = (t) => (t || '').replace(/\s+/g, ' ').replace(/[\*:\s]+$/, '').trim().toLowerCase();
+        const target = START_LABEL.toLowerCase();
+        const labels = Array.from(document.querySelectorAll('label.cog-label, label'));
+        const pick = (text) => { for (const name in DEPOTS) if (text.includes(name)) return name; return null; };
+        let found = null, how = '';
+        // 1. by label: exact match first, then "starts with" (copes with extra text such as "Required")
+        outer: for (const exact of [true, false]) {
+            for (const label of labels) {
+                const t = norm(label.textContent);
+                if (exact ? t !== target : t.indexOf(target) !== 0) continue;
+                found = pick(startControlText(startControlForLabel(label)).trim().toLowerCase());
+                if (found) { how = 'label'; break outer; }
+            }
+        }
+        // 2. fallback: any read-only dropdown box (or real select) currently showing a depot name
+        if (!found) {
+            for (const el of document.querySelectorAll('input[readonly], select')) {
+                const t = startControlText(el).trim().toLowerCase();
+                if (DEPOTS[t]) { found = t; how = 'dropdown scan'; break; }
+            }
+        }
+        if (found !== lastDepotLogged) { console.log('BWT route: start depot =', found || ('(not found, using ' + DEFAULT_DEPOT + ')'), how ? '[' + how + ']' : '', '| labels seen:', labels.map(l => norm(l.textContent)).filter(Boolean).slice(0, 12)); lastDepotLogged = found; }
+        return found || DEFAULT_DEPOT;
+    }
+    const originAddress = () => DEPOTS[depotKey()];
     const ADDRESS_LEGEND_MATCH = /delivery address/i;
 
     // ---- Responsive styling ----
@@ -155,7 +214,7 @@
         card.style.borderLeft = `4px solid ${statusColor}`;
 
         card.innerHTML = `
-            <div class="bwt-route-sub">🚚 Depot → </div>
+            <div class="bwt-route-sub">🚚 ${depotKey() === 'palmerston north' ? 'Palmerston North' : 'Upper Hutt'} depot → </div>
             <div class="bwt-route-toprow">
                 <div class="bwt-route-label">${addressLabel}</div>
                 <div class="bwt-route-status" style="color:${statusColor};">${statusLabel}</div>
@@ -186,7 +245,7 @@
             const iframe = document.createElement('iframe');
             iframe.loading = 'lazy';
             iframe.referrerPolicy = 'no-referrer-when-downgrade';
-            iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(ORIGIN)}&destination=${encodeURIComponent(address.full)}&mode=driving`;
+            iframe.src = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${encodeURIComponent(originAddress())}&destination=${encodeURIComponent(address.full)}&mode=driving`;
             card.appendChild(iframe);
         }
 
@@ -198,7 +257,7 @@
             try {
                 if (!google.maps.DirectionsService) { useEmbed(); return; }
                 new google.maps.DirectionsService().route({
-                    origin: ORIGIN,
+                    origin: originAddress(),
                     destination: address.full,
                     travelMode: 'DRIVING'
                 }, (result, status) => {
@@ -280,7 +339,7 @@
         const service = new google.maps.DistanceMatrixService();
 
         service.getDistanceMatrix({
-            origins: [ORIGIN],
+            origins: [originAddress()],
             destinations: [address.full],
             travelMode: 'DRIVING',
             drivingOptions: {
@@ -334,9 +393,10 @@
 
             if (!address) return; // nothing typed yet, stay quiet
 
-            if (address.full === lastLookedUp) return; // unchanged, skip
+            const lookupKey = address.full + '|' + depotKey();
+            if (lookupKey === lastLookedUp) return; // unchanged (address and depot), skip
 
-            lastLookedUp = address.full;
+            lastLookedUp = lookupKey;
             ensureMapsLoaded(() => loadRoute(address));
 
         }, 1200);
@@ -355,6 +415,7 @@
         });
 
         listenersAttached = true;
+        setInterval(handleAddressChange, 2000);   // must be longer than the 1.2 s debounce, or the debounce never completes   // the Start Location dropdown doesn't fire typing events
 
         panel.innerHTML = '';
         panel.appendChild(buildMessageCard('Waiting for delivery address…'));
