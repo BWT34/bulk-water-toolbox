@@ -23,13 +23,13 @@
   const SHOW_CLOCK = true;        // small clock in a corner (moves every minute)
   const SUNRISE = 6.25;           // sunrise, in hours (6.25 = 6:15 am) - adjust through the year
   const SUNSET = 19.5;            // sunset (19.5 = 7:30 pm). Late October in the Hutt Valley is about 6:15 and 7:55 on the clock
-  const CYCLE_SECONDS = 180;      // one full day-and-night cycle takes this long (dusk, night, dawn, day). 0 = follow the real clock
-  const TRUCK_X = 0.36;           // where the water truck sits across the screen (0.5 = middle; smaller = further left, more room for oncoming traffic)
+  const CYCLE_SECONDS = 240;      // one full day-and-night cycle takes this long (dusk, night, dawn, day). 0 = follow the real clock
+  const TRUCK_X = 0.27;           // where the water truck sits across the screen (0.5 = middle; smaller = further left, more room for oncoming traffic)
   const SPEEDING_KMH = 105;       // a speed check at or over this sends two police cars after the truck
   const POLICE_SECONDS = 300;     // (only used by the ?police=1 test mode)
   const MILK_SECONDS = 25;        // a Bulk Milk truck comes past about this often
   const SPEED = 240;              // how fast the truck "drives" (pixels per second on a 900 px tall screen)
-  const PLACES = ['Wellington', 'Porirua', 'Kapiti', 'Otaki', 'Levin', 'Featherston', 'Greytown',
+  const PLACES = ['Wellington', 'Porirua', 'Kapiti', 'Otaki', 'Levin', 'Greytown',
                   'Carterton', 'Masterton', 'Martinborough', 'Palmerston North', 'Feilding', 'Upper Hutt'];
   // Testing: add ?hour=14 to the address to freeze the time of day, or ?fast=1 to watch a whole day go by
 
@@ -61,8 +61,8 @@
     if (forcedHour === null && !fast && !params.has('real') && CYC > 0) {
       // Speeded-up day: the sky steps through day, dusk, night and dawn so the headlights get seen.
       // Hours here are the sky's own (6 = sunrise, 18 = sunset, 30 = next sunrise).
-      const p = ((t / 1000 / CYC) + 0.28) % 1;          // start late in the afternoon
-      const seg = [[0, .34, 8, 16.5], [.34, .46, 16.5, 19], [.46, .84, 19, 29.5], [.84, 1, 29.5, 32]];
+      const p = ((t / 1000 / CYC) + 0.42) % 1;          // start late in the afternoon
+      const seg = [[0, .50, 8, 16.5], [.50, .60, 16.5, 19], [.60, .84, 19, 29.5], [.84, 1, 29.5, 32]];   // long day (50%), short night (24%)
       for (const [a, b, h0, h1] of seg) if (p >= a && p < b) return h0 + (h1 - h0) * (p - a) / (b - a);
       return 8;
     }
@@ -98,13 +98,14 @@
   let ourFlash = 0, milkFlash = 0;   // indicators blinking while the trucks pass
   let policeX = null, policeTimer = params.has('police') ? 1500 : 40000;
   const POLICE_EVERY = (params.has('police') ? 9 : POLICE_SECONDS) * 1000;
+  let wd = null, milkWheel = 0, policeWheel = 0, motoWheel = 0, milkPull = 0;   // wd: wheel travel (px) a vehicle is drawn with; null = follow the scenery. Parked vehicles get a fixed value so their wheels stand still
   let milkX = null, milkTimer = params.has('milk') ? 1500 : 5000;   // the oncoming Bulk Milk truck
   const MILK_EVERY = (params.has('milk') ? 9 : MILK_SECONDS) * 1000;
   let sc = 0;                     // distance travelled
   const parts = [];               // smoke, dust, drips
   const signs = [];
-  let signTimer = 6000, signIdx = 0;
-  if (params.has('board')) { signIdx = 2; signTimer = 300; }   // testing: show the logo billboard first
+  let signTimer = 6000, signIdx = 0, nameIdx = 0;
+  if (params.has('board')) { signIdx = 2; signTimer = 300; }
 
   // ---------- sky ----------
   function drawSky(h, t) {
@@ -153,7 +154,7 @@
 
   function drawClouds(dt, light) {
     const col = mix([70, 80, 110], [255, 255, 255], light.day);
-    const warm = mix(col, [255, 190, 150], light.tw * .6);
+    const warm0 = mix(col, [255, 190, 150], light.tw * .6), warm = mix(warm0, [66, 72, 90], Math.min(1, rainCover * 0.95));      // the ordinary clouds darken as the storm comes in
     for (const c of clouds) {
       c.x -= c.sp * dt / 1000 * s * 3 * (1 + windAmt * 2.5);
       const px = ((c.x - sc * 0.02) % 2400 + 2400) % 2400 * W / 2400 - 160 * s;
@@ -348,7 +349,7 @@
   // a speed check: a police car parked on the far verge, the officer out with a radar gun pointed at our truck
   const RADAR_CHANCE = 0.35;      // chance that an oncoming milk tanker / Hydro Vac has a speed check set up for it
   const RADAR_GAP = 1.1;            // seconds between the officer appearing and the oncoming truck coming into view
-  let radar = null, radarDecided = false, policePending = false, giggle = 0;   // giggle: ms left of our driver's "hehehe" after a speeder is caught
+  let radar = null, radarDecided = false, policePending = false, giggle = 0, giggleMsg = 'hehe';   // giggle: ms left of our driver's "hehehe" after a speeder is caught
   function radarLead(v) {                                       // ms from the officer being sent in to the truck appearing
     return (RADAR_GAP + 334 * s / v) * 1000;                    // 334 px: the time the officer takes to slide into view
   }
@@ -357,13 +358,14 @@
     if (milkX !== null) radarDecided = false;
     else if (!radarDecided && !radar && milkTimer <= radarLead(vNomG)) {
       radarDecided = true;
-      if (!kidGroup && (params.has('radar') || Math.random() < RADAR_CHANCE)) radar = { x: W + 300 * s, kmh: 100, seen: -1 };
+      if (!kidGroup && (params.has('radar') || (!factory && !paddock && Math.random() < RADAR_CHANCE)))   // no speed check while a factory or paddock is in view: that tanker is there to stop and load
+       radar = { x: W + 300 * s, kmh: 100, seen: -1 };
     }
     if (!radar) return;
     // once a truck that was clocked speeding has gone past him, the police go after it
     if (milkX !== null && radar.seen === milkCount && radar.kmh >= SPEEDING_KMH && !radar.flagged) {
       const fx = milkX - KIND_LEN(milkKind) * s * TM;
-      if (fx < radar.x + 34 * s) { radar.flagged = true; policePending = true; giggle = 3600; }
+      if (fx < radar.x + 34 * s) { radar.flagged = true; policePending = true; giggle = 3600; giggleMsg = 'slow'; }
     }
     radar.x -= v * dt / 1000;                                   // parked: he moves with the road
     if (radar.x < -560 * s) radar = null;
@@ -374,7 +376,7 @@
     // the parked police car, facing the traffic coming from the right
     const yc = yB + hillY(radar.x - carLen / 2), cc = radar.x - plen / 2;
     ctx.save(); ctx.translate(radar.x - carLen / 2, yc); ctx.scale(-sc2, sc2); ctx.translate(-(radar.x - plen / 2), -yc);
-    txtMir = 1; drawPoliceCar(radar.x, yc, t, light, 0); txtMir = -1;
+    txtMir = 1; wd = 0; drawPoliceCar(radar.x, yc, t, light, 0); wd = null; txtMir = -1;      // parked: wheels still
     ctx.restore();
     // the officer, standing just in front of his car and facing the oncoming lane
     const ox = radar.x + 34 * s, oy = yB + hillY(ox), k = s * 0.8;
@@ -404,7 +406,7 @@
     // the oncoming milk tanker or Hydro Vac: beam on it, and its speed on the gun display
     if (milkX !== null) {
       const len = KIND_LEN(milkKind) * s * TM, fx = milkX - len;        // front of the truck (it faces left)
-      if (radar.seen !== milkCount) { radar.seen = milkCount; radar.kmh = (params.has('speeding') || Math.random() < 0.35) ? SPEEDING_KMH + (Math.random() * 7 | 0) : 90 + (Math.random() * 14 | 0); }
+      if (radar.seen !== milkCount) { radar.seen = milkCount; radar.kmh = milkKind === 'van' ? 88 + (Math.random() * 10 | 0) : (params.has('speeding') || Math.random() < 0.35) ? SPEEDING_KMH + (Math.random() * 7 | 0) : 90 + (Math.random() * 14 | 0); }
       if (fx > ox - 80 * s) {
         const near = Math.max(0, fx - ox), lock = 1 - smooth(250 * s, 800 * s, near);
         ctx.globalCompositeOperation = 'lighter';
@@ -429,13 +431,19 @@
   let works = null, worksTimer = params.has('works') ? 800 : 25000;
   function updateWorks(dt, v, light) {
     worksTimer -= dt;
-    if (!works && !broke && worksTimer <= 0 && light.day > 0.7) { works = { x: W + 60 * s }; worksTimer = WORKS_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
+    if (!works && !broke && worksTimer <= 0 && light.day > 0.7) { works = { x: W + 60 * s, arr: 720 * s }; worksTimer = WORKS_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
     if (!works) return;
     works.x -= v * 1.35 * dt / 1000;
+    // works.arr: how far right of its parking spot the repair crew's convoy still is (it drives in from off-screen)
+    if (works.arr === 0) works.crewT = (works.crewT || 0) + dt;      // ticks once the convoy has parked: that's when the rest of the crew gets out
+    if (works.convoy && works.arr > 0) {                                  // the Tiaki Wai truck and van drive in from the right and settle into their spots
+      const sp = Math.max(14 * s, Math.min(0.55 * vNomG, Math.sqrt(2 * 150 * s * works.arr)));
+      works.arr = works.arr - sp * dt / 1000 < 1 * s ? 0 : works.arr - sp * dt / 1000;
+    }
     const lk = works.leak;
     if (lk) {
       const g = 620 * s * dt / 1000;
-      if (lk.amt > 0.03) { lk.acc += dt / 1000 * 140 * lk.amt; while (lk.acc >= 1) { lk.acc--; lk.p.push({ ox: (Math.random() - .5) * 6 * s, h: 0, vx: (Math.random() - .5) * 80 * s, vh: (400 + Math.random() * 150) * s * (0.6 + 0.4 * lk.amt), r: (1.6 + Math.random() * 1.8) * s }); } }
+      if (lk.amt > 0.03) { lk.acc += dt / 1000 * 230 * lk.amt; while (lk.acc >= 1) { lk.acc--; lk.p.push({ ox: (Math.random() - .5) * 10 * s, h: 0, vx: (Math.random() - .5) * 120 * s, vh: (640 + Math.random() * 260) * s * (0.6 + 0.4 * lk.amt), r: (2.2 + Math.random() * 2.4) * s }); } }
       for (let i = lk.p.length - 1; i >= 0; i--) { const q = lk.p[i]; q.ox += q.vx * dt / 1000; q.h += q.vh * dt / 1000; q.vh -= g; if (q.h < 0) lk.p.splice(i, 1); }
     }
     if (works.x + 980 * s < -80 * s) works = null;
@@ -461,7 +469,9 @@
     ctx.restore();
   }
   function worker(x, y, k, role, t, ph) {
-    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    ctx.save(); ctx.translate(x, y);
+    if (windAmt > 0.02) ctx.transform(1, 0, windAmt * 0.17 + Math.sin(t * 0.011 + ph) * windAmt * 0.05, 1, 0, 0);      // leans into the wind, blown sideways in a gust, like the kids
+    ctx.scale(k, k);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, 0, 17, 4, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#2a3a55'; ctx.fillRect(-9, -40, 8, 38); ctx.fillRect(1, -40, 8, 38);                               // trousers
     ctx.fillStyle = '#4a3320'; ctx.beginPath(); ctx.ellipse(-5, -2, 8, 3.8, 0, 0, 7); ctx.ellipse(5, -2, 8, 3.8, 0, 0, 7); ctx.fill();   // boots
@@ -522,7 +532,7 @@
       if (lk) {
         ctx.fillStyle = 'rgba(190,225,255,.85)';
         for (const q of lk.p) { ctx.beginPath(); ctx.arc(lx + q.ox, gy - 22 * s - q.h, q.r, 0, 7); ctx.fill(); }
-        if (lk.amt > 0.05) { ctx.fillStyle = 'rgba(235,246,255,' + (0.55 * lk.amt).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(lx, gy - 26 * s - 4 * s, 9 * s, 14 * s * lk.amt, 0, 0, 7); ctx.fill(); }
+        if (lk.amt > 0.05) { ctx.fillStyle = 'rgba(235,246,255,' + (0.55 * lk.amt).toFixed(3) + ')'; ctx.beginPath(); ctx.ellipse(lx, gy - 26 * s - 20 * s * lk.amt, 13 * s, 34 * s * lk.amt, 0, 0, 7); ctx.fill(); }
       }
     }
     [x, h] = at(400); worker(x, yv + h, k * 1.02, 'stand', t, 1);
@@ -539,7 +549,7 @@
     broke.x -= v * 1.35 * dt / 1000;
     const k = s * 0.95, ourCab = W * TRUCK_X + 211 * s * TS;
     bdWave = 1 - smooth(110 * s, 430 * s, Math.abs(broke.x + 470 * k - ourCab));              // our driver waves as he passes the cab
-    if (bdWave > 0.2 && !broke.laughed) { broke.laughed = true; giggle = 3600; }                // hehehe as he drives past
+    if (bdWave > 0.2 && !broke.laughed) { broke.laughed = true; giggle = 3600; giggleMsg = 'hehe'; }                // hehehe as he drives past
     if (broke.x + 1000 * k < -60 * s) broke = null;
   }
   function drawBroke(t, light) {
@@ -640,12 +650,12 @@
     }
     if (!santa) { santaNear = 0; return; }
     const k = santa.k, d = santa.dir;
-    santa.x += d * 110 * s * dt / 1000;
-    const y = santa.y + Math.sin(t * 0.0021 + santa.ph) * 14 * s;
+    santa.x += (d * 110 - windAmt * 85) * s * dt / 1000;               // the wind blows him backwards (to the left) when it gusts
+    const y = santa.y + Math.sin(t * 0.0021 + santa.ph) * 14 * s + Math.sin(t * 0.0075 + santa.ph) * windAmt * 26 * s + windAmt * 18 * s;
     if (!reduceMotion && Math.random() < dt / 35) santa.sp.push({ x: santa.x - d * 40 * k, y: y - (20 + Math.random() * 40) * k, a: 1, vx: -d * (4 + Math.random() * 10) * s, r: (1.4 + Math.random() * 2.2) * s });
     ctx.globalCompositeOperation = 'lighter';
     for (let i = santa.sp.length - 1; i >= 0; i--) {
-      const p = santa.sp[i]; p.a -= dt / 1500; p.y += 14 * s * dt / 1000; p.x += p.vx * dt / 1000;
+      const p = santa.sp[i]; p.a -= dt / 1500; p.y += 14 * s * dt / 1000; p.x += (p.vx - windAmt * 120 * s) * dt / 1000;
       if (p.a <= 0) { santa.sp.splice(i, 1); continue; }
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
       g.addColorStop(0, 'rgba(255,235,150,' + p.a.toFixed(2) + ')'); g.addColorStop(1, 'rgba(255,210,90,0)');
@@ -654,11 +664,11 @@
     ctx.globalCompositeOperation = 'source-over';
     santaNear = 1 - smooth(120 * s, 520 * s, Math.abs(santa.x + d * 200 * k - (W * TRUCK_X + 110 * s)));
     const blink = santaNear > 0.45 && Math.sin(t * 0.006) > 0;
-    ctx.save(); ctx.translate(santa.x, y); ctx.scale(d * k, k); ctx.rotate(-0.06);
+    ctx.save(); ctx.translate(santa.x, y); ctx.scale(d * k, k); ctx.rotate(-0.06 + windAmt * (Math.sin(t * 0.0062 + santa.ph) * 0.2 + 0.1 * d));   // tossed about in the gusts
     // reins, then the team of four
     ctx.strokeStyle = '#5a3d22'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(84, -50);
     for (let i = 0; i < 4; i++) ctx.lineTo(150 + i * 68, -44 - i * 7 - 10); ctx.stroke();
-    for (let i = 3; i >= 0; i--) reindeer(150 + i * 68, -44 - i * 7, i * 1.3 + santa.ph, t);
+    for (let i = 3; i >= 0; i--) reindeer(150 + i * 68, -44 - i * 7 + Math.sin(t * 0.009 + i * 1.7) * windAmt * 7, i * 1.3 + santa.ph, t * (1 + windAmt * 0.8));   // reindeer struggling
     // sleigh
     ctx.strokeStyle = '#d9a82a'; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-16, 2); ctx.lineTo(106, 2); ctx.quadraticCurveTo(126, 2, 128, -16); ctx.stroke();
     ctx.lineWidth = 3; [[8, 2, 8, -14], [84, 2, 84, -14]].forEach(([a, b, c, e]) => { ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, e); ctx.stroke(); });
@@ -708,16 +718,17 @@
       if (L.plan === 'stop' && !L.leak) L.leak = { amt: 0, pud: 0, on: false, done: false, age: 0, trig: (400 + Math.random() * 60) * s, acc: 0, p: [] };
       const lk = L.leak;
       if (lk) {                                                                       // the burst pipe: spurts up, then the lights go amber/red; it is fixed before the lights go green
-        if (!lk.on && !lk.done && L.state === 'green' && d < lk.trig) { lk.on = true; lk.age = 0; }
+        if (!lk.on && !lk.done && L.state === 'green' && d < lk.trig) { lk.on = true; lk.age = 0; L.convoy = true; }      // the burst sends the Tiaki Wai crew out: they only turn up once the hydrant is gushing
         if (lk.on) lk.age += dt;
-        if (lk.on && L.state === 'red' && L.hold > (SIGNAL_RED_SECONDS - 2.6) * 1000) { lk.on = false; lk.done = true; }
+        const crewIn = (L.crewT || 0) > 12500;      // the six suited men are all standing around the hydrant
+        if (lk.on && L.state === 'red' && ((L.hold > (SIGNAL_RED_SECONDS - 2.6) * 1000 && crewIn) || L.hold > 29400)) { lk.on = false; lk.done = true; }
         lk.amt += ((lk.on ? 1 : 0) - lk.amt) * Math.min(1, dt / (lk.on ? 250 : 450));
         lk.pud += ((lk.on ? 1 : 0) - lk.pud) * Math.min(1, dt / (lk.on ? 4500 : 1600));
       }
       if (L.plan === 'stop' && d > -5 * s) {
         if (L.state === 'green' && !L.done && lk && lk.on && lk.age > 900) { L.state = 'amber'; L.sT = 0; }
         else if (L.state === 'amber') { L.sT += dt; if (L.sT > 2000) { L.state = 'red'; L.sT = 0; } }
-        else if (L.state === 'red') { if (drive < 3 * s) L.hold += dt; if (L.hold > SIGNAL_RED_SECONDS * 1000) { L.state = 'green'; L.done = true; } }
+        else if (L.state === 'red') { if (drive < 3 * s) L.hold += dt; if ((L.hold > SIGNAL_RED_SECONDS * 1000 && (L.crewT || 0) > 15100) || L.hold > 32000) { L.state = 'green'; L.done = true; } }      // red holds until the whole crew is at the leak
         if (L.state === 'amber' || L.state === 'red') { target = Math.sqrt(2 * 130 * s * Math.max(0, d)); braking = true; }
       }
     }
@@ -725,13 +736,55 @@
     else drive = Math.min(vNom, drive + 110 * s * dt / 1000, target);
     return drive;
   }
+  // the same lights, mirrored on the far verge for the oncoming lane: amber slows that traffic, red stops it at the line, green lets it go
+  const farLx = () => (works && works.lx !== undefined) ? works.lx + 380 * s : null;
+  function farRel(front, rel0, v) {          // front = x of the vehicle's leading (left) end; returns its speed relative to the scenery
+    const X = farLx();
+    if (X === null || (works.state !== 'amber' && works.state !== 'red')) return rel0;
+    const d = front - (X + 110 * s);         // gap to the stop line, a clear truck-nose in front of the pole
+    if (d < -4 * s) return rel0;             // already through
+    return clamp(Math.sqrt(2 * 220 * s * Math.max(0, d)) - v, 0, rel0);
+  }
+  // black hose from the factory vat / paddock vat to the parked tanker's rear port; amt 0..1 runs it out or reels it in
+  function drawHose(p0, p3, yg, amt, k) {
+    const x3 = p0.x + (p3.x - p0.x) * amt, y3 = p0.y + (p3.y - p0.y) * amt, sag = yg + 8 * s;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const path = () => { ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.bezierCurveTo(p0.x - 70 * s * amt, sag, x3 + 90 * s * amt, sag, x3, y3); };
+    ctx.strokeStyle = '#0c0d10'; ctx.lineWidth = 7 * k; path(); ctx.stroke();                       // the hose
+    ctx.strokeStyle = 'rgba(120,126,138,.45)'; ctx.lineWidth = 1.8 * k; ctx.translate(0, -1.6 * k); path(); ctx.stroke(); ctx.translate(0, 1.6 * k);   // glint along the top
+    ctx.fillStyle = '#9aa4b0';                                                                       // couplings at each end
+    [[p0.x, p0.y], [x3, y3]].forEach(([cx, cy]) => { ctx.beginPath(); ctx.roundRect(cx - 5 * k, cy - 5 * k, 10 * k, 10 * k, 2 * k); ctx.fill(); });
+    ctx.restore();
+  }
+  function drawFarSignal(t) {
+    const x = farLx(); if (x === null || x < -120 || x > W + 120) return;
+    const k = s * 0.72, y = roadTop() + 3 * s + hillY(x);
+    ctx.save(); windLean(x, y, gustLean(x, 0.14, 0.04));
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y, 30 * k, 5 * k, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.roundRect(x - 26 * k, y - 22 * k, 52 * k, 18 * k, 3 * k); ctx.fill();   // trailer base, like the near side
+    ctx.fillStyle = '#222'; [-14, 14].forEach(dx => { ctx.beginPath(); ctx.arc(x + dx * k, y - 4 * k, 6 * k, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#9aa3ad'; ctx.fillRect(x - 2.5 * k, y - 22 * k - 130 * k, 5 * k, 130 * k);
+    const hx = x - 15 * k, hy = y - 22 * k - 130 * k - 66 * k;
+    ctx.fillStyle = '#14161a'; ctx.beginPath(); ctx.roundRect(hx, hy, 30 * k, 72 * k, 5 * k); ctx.fill();
+    const st = works.state || 'green', cols = [['red', '#ff3b30', '#4a1512'], ['amber', '#ffb300', '#4a3608'], ['green', '#2bd957', '#0f3a1c']];
+    cols.forEach(([n, on, off], i) => {
+      const cx = x, cy = hy + (14 + i * 22) * k, lit = st === n;
+      ctx.fillStyle = lit ? on : off; ctx.beginPath(); ctx.arc(cx, cy, 9 * k, 0, 7); ctx.fill();
+      if (lit) {
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, 38 * k); g.addColorStop(0, on + 'cc'); g.addColorStop(1, on + '00');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 38 * k, 0, 7); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+      }
+    });
+    ctx.restore();
+  }
   function drawSignal(t) {
     if (!works || works.lx === undefined) return;
     const x = works.lx, k = s, y = 0.945 * H + hillY(x);
     ctx.save(); windLean(x, y, gustLean(x, 0.14, 0.04));
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 44 * k, 7 * k, 0, 0, 7); ctx.fill();
     // keep-left arrow sign on a frame
-    const sx = x + 160 * k;
+    const sx = x + 340 * k;
     ctx.strokeStyle = '#3a3d44'; ctx.lineWidth = 3 * k; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(sx - 24 * k, y); ctx.lineTo(sx - 18 * k, y - 100 * k); ctx.moveTo(sx + 24 * k, y); ctx.lineTo(sx + 18 * k, y - 100 * k); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, y - 116 * k, 38 * k, 0, 7); ctx.fill();
@@ -760,11 +813,14 @@
     ctx.restore();
   }
 
+  function flipText(txt, x, y) {      // text on a mirrored vehicle, drawn the right way round
+    const w = ctx.measureText(txt).width; ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.fillText(txt, 0, 0); ctx.restore();
+  }
   // the repair crew's van parked on the verge just before the traffic lights
   function drawVan(t) {
-    if (!works || works.lx === undefined) return;
-    const k = s * 0.95, x0 = works.lx - 40 * s - 268 * k, y = 0.948 * H + hillY(x0 + 134 * k), on = Math.sin(t * 0.0125) > 0;
-    ctx.save(); ctx.translate(x0, y); ctx.scale(k, k);
+    if (!works || works.lx === undefined || !works.convoy) return;
+    const k = s * 0.95, x0 = works.lx - 40 * s - 268 * k + (works.arr || 0), y = 0.948 * H + hillY(x0 + 134 * k), on = Math.sin(t * 0.0125) > 0;
+    ctx.save(); ctx.translate(x0 + 268 * k, y); ctx.scale(-k, k);      // faces left: it drove in nose-first
     ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.beginPath(); ctx.ellipse(134, 3, 145, 7, 0, 0, 7); ctx.fill();
     const bg = ctx.createLinearGradient(0, -122, 0, -26); bg.addColorStop(0, '#ffffff'); bg.addColorStop(.7, '#eef1f4'); bg.addColorStop(1, '#c9d0d7');
     ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(0, -112); ctx.quadraticCurveTo(0, -122, 10, -122); ctx.lineTo(196, -122); ctx.lineTo(234, -84); ctx.lineTo(266, -70); ctx.lineTo(268, -30); ctx.lineTo(268, -26); ctx.closePath(); ctx.fill();
@@ -775,14 +831,251 @@
     ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.roundRect(260, -68, 7, 10, 2); ctx.fill();                                                        // headlight
     [52, 214].forEach(cx => { ctx.fillStyle = '#1a2028'; ctx.beginPath(); ctx.arc(cx, -22, 25, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#12161c'; ctx.beginPath(); ctx.arc(cx, -20, 20, 0, 7); ctx.fill();
       ctx.fillStyle = '#b8c0c9'; ctx.beginPath(); ctx.arc(cx, -20, 11, 0, 7); ctx.fill(); ctx.fillStyle = '#4a5360'; ctx.beginPath(); ctx.arc(cx, -20, 4, 0, 7); ctx.fill(); });
-    // Teaki Wai logo on the side: a water drop and the name
+    // Tiaki Wai logo on the side: a water drop and the name
     ctx.fillStyle = '#0a6cc4'; ctx.beginPath(); ctx.moveTo(30, -100); ctx.quadraticCurveTo(14, -78, 20, -68); ctx.quadraticCurveTo(30, -56, 40, -68); ctx.quadraticCurveTo(46, -78, 30, -100); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(26, -72, 3, 6, .5, 0, 7); ctx.fill();
-    ctx.fillStyle = '#0a4f9c'; ctx.font = 'bold 28px Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Teaki Wai', 48, -72);
+    ctx.fillStyle = '#0a4f9c'; ctx.font = 'bold 28px Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; flipText('Tiaki Wai', 48, -72);
     ctx.fillStyle = '#25a9e0'; ctx.fillRect(48, -62, 138, 4); ctx.fillStyle = '#0a4f9c'; ctx.fillRect(48, -62, 50, 4);
     ctx.fillStyle = on ? '#ffa31a' : '#8a5a10'; ctx.beginPath(); ctx.roundRect(110, -131, 22, 9, 3); ctx.fill();                                      // roof beacon
     lamp(262, -52, 7, 10, on); lamp(-4, -64, 7, 10, on);                                                                                             // hazards
     ctx.restore();
+  }
+
+  // a second Tiaki Wai truck behind the van, and a group of men in suits with folders puzzling over the leak
+  function drawTiakiTruck(t) {
+    if (!works || works.lx === undefined || !works.convoy) return;
+    const k = s * 0.95, vanX = works.lx - 40 * s - 268 * k + (works.arr || 0), x0 = vanX - 30 * k - 312 * k, y = 0.948 * H + hillY(x0 + 156 * k), on = Math.sin(t * 0.0125 + 1.5) > 0;
+    ctx.save(); ctx.translate(x0 + 312 * k, y); ctx.scale(-k, k);      // faces left: it drove in nose-first
+    ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.beginPath(); ctx.ellipse(156, 3, 170, 7, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1a2028'; ctx.fillRect(0, -36, 312, 10);                                                               // chassis
+    ctx.fillStyle = '#1f6fd0'; [-140, -150].forEach(py => { ctx.fillRect(8, py, 184, 8); });                                 // blue pipe lengths on the roof rack
+    ctx.fillStyle = '#4c97ec'; ctx.fillRect(8, -150, 184, 2.5); ctx.fillRect(8, -140, 184, 2.5);
+    ctx.strokeStyle = '#3a3d44'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(24, -132); ctx.lineTo(24, -126); ctx.moveTo(176, -132); ctx.lineTo(176, -126); ctx.stroke();
+    const bg = ctx.createLinearGradient(0, -132, 0, -36); bg.addColorStop(0, '#ffffff'); bg.addColorStop(1, '#cfd6dd');
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(0, -132, 198, 96, 5); ctx.fill();                                      // box body
+    ctx.beginPath(); ctx.moveTo(204, -36); ctx.lineTo(204, -122); ctx.lineTo(258, -122); ctx.quadraticCurveTo(274, -122, 282, -100); ctx.lineTo(306, -76); ctx.lineTo(310, -36); ctx.closePath(); ctx.fill();   // cab
+    ctx.fillStyle = '#18202a'; ctx.beginPath(); ctx.moveTo(214, -114); ctx.lineTo(262, -114); ctx.quadraticCurveTo(272, -114, 278, -98); ctx.lineTo(292, -82); ctx.lineTo(214, -82); ctx.closePath(); ctx.fill();   // window
+    ctx.strokeStyle = 'rgba(60,70,80,.4)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(100, -128); ctx.lineTo(100, -40); ctx.moveTo(200, -122); ctx.lineTo(200, -40); ctx.stroke();
+    ctx.fillStyle = '#25a9e0'; ctx.fillRect(0, -54, 198, 6); ctx.fillStyle = '#0a4f9c'; ctx.fillRect(0, -54, 70, 6);                 // blue stripe
+    ctx.fillStyle = '#0a6cc4'; ctx.beginPath(); ctx.moveTo(24, -116); ctx.quadraticCurveTo(10, -96, 15, -88); ctx.quadraticCurveTo(24, -78, 33, -88); ctx.quadraticCurveTo(38, -96, 24, -116); ctx.fill();
+    ctx.fillStyle = '#0a4f9c'; ctx.font = 'bold 27px Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; flipText('Tiaki Wai', 46, -92);
+    ctx.fillStyle = '#2a2f36'; ctx.beginPath(); ctx.roundRect(300, -44, 14, 14, 3); ctx.fill(); ctx.beginPath(); ctx.roundRect(-4, -44, 8, 14, 3); ctx.fill();
+    ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.roundRect(303, -76, 6, 10, 2); ctx.fill();
+    [52, 250].forEach(cx => { ctx.fillStyle = '#1a2028'; ctx.beginPath(); ctx.arc(cx, -24, 27, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#12161c'; ctx.beginPath(); ctx.arc(cx, -22, 22, 0, 7); ctx.fill();
+      ctx.fillStyle = '#b8c0c9'; ctx.beginPath(); ctx.arc(cx, -22, 12, 0, 7); ctx.fill(); ctx.fillStyle = '#4a5360'; ctx.beginPath(); ctx.arc(cx, -22, 4, 0, 7); ctx.fill(); });
+    ctx.fillStyle = on ? '#ffa31a' : '#8a5a10'; ctx.beginPath(); ctx.roundRect(240, -130, 22, 9, 3); ctx.fill();
+    lamp(306, -58, 7, 10, on); lamp(-5, -66, 7, 10, on);
+    ctx.restore();
+  }
+  function suitGuy(x, y, k, face, suit, tie, role, t, ph, wk) {      // wk > 0: walking (legs swing, a little bounce)
+    ctx.save(); ctx.translate(x, y - (wk ? Math.abs(Math.sin(t * 0.011 + ph)) * 1.6 * k : 0));
+    if (windAmt > 0.02) ctx.transform(1, 0, windAmt * 0.17 + Math.sin(t * 0.011 + ph) * windAmt * 0.05, 1, 0, 0);      // blown sideways in a gust (screen-left), before the facing flip
+    ctx.scale(k * face, k);                                   // local +x is the way he faces
+    const nod = Math.sin(t * 0.002 + ph) * 1.6;
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 0, 17, 4.5, 0, 0, 7); ctx.fill();
+    if (wk) {                                                                                                               // walking: legs swing from the hips
+      [[-4, 0], [4, Math.PI]].forEach(([hx, off]) => { ctx.save(); ctx.translate(hx, -44); ctx.rotate(Math.sin(t * 0.011 + ph + off) * 0.5);
+        ctx.fillStyle = suit; ctx.fillRect(-3.8, 0, 7.6, 42); ctx.fillStyle = '#0d0f12'; ctx.beginPath(); ctx.ellipse(3, 42, 7, 3.4, 0, 0, 7); ctx.fill(); ctx.restore(); });
+    } else {
+      ctx.fillStyle = suit; ctx.fillRect(-9, -44, 7.5, 42); ctx.fillRect(1.5, -44, 7.5, 42);                                  // trousers
+      ctx.fillStyle = '#0d0f12'; ctx.beginPath(); ctx.ellipse(-4, -2, 8, 3.6, 0, 0, 7); ctx.ellipse(8, -2, 8, 3.6, 0, 0, 7); ctx.fill();
+    }
+    ctx.beginPath(); ctx.roundRect(-13, -86, 26, 46, 6); ctx.fillStyle = suit; ctx.fill();                                    // jacket
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-3, -86); ctx.lineTo(3, -86); ctx.lineTo(0, -62); ctx.closePath(); ctx.fill();
+    const tf = -face * windAmt * (6 + Math.sin(t * 0.03 + ph) * 3);          // the tie flicks out downwind
+    ctx.fillStyle = tie; ctx.beginPath(); ctx.moveTo(-1.6, -80); ctx.lineTo(1.6, -80); ctx.lineTo(2.4 + tf, -64); ctx.lineTo(tf, -60); ctx.lineTo(-2.4 + tf, -64); ctx.closePath(); ctx.fill();
+    ctx.lineCap = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = suit;
+    // arms: a folder held across the chest, one arm pointing at the hole, or a hand to the chin
+    if (role === 'point') {
+      ctx.beginPath(); ctx.moveTo(8, -80); ctx.lineTo(30, -70 + nod); ctx.stroke(); ctx.fillStyle = '#e3b08f'; ctx.beginPath(); ctx.arc(32, -70 + nod, 3.6, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-8, -80); ctx.lineTo(0, -58); ctx.lineTo(10, -60); ctx.stroke();
+    } else if (role === 'chin') {
+      ctx.beginPath(); ctx.moveTo(8, -80); ctx.lineTo(12, -64); ctx.lineTo(8, -76 + nod); ctx.stroke(); ctx.fillStyle = '#e3b08f'; ctx.beginPath(); ctx.arc(7, -88 + nod * .5, 3.4, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-8, -80); ctx.lineTo(-2, -58); ctx.lineTo(8, -60); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(8, -80); ctx.lineTo(12, -64); ctx.lineTo(4, -60); ctx.stroke();
+    }
+    if (role !== 'point') { ctx.fillStyle = role === 'chin' ? '#2f6bb5' : '#c9a15a'; ctx.beginPath(); ctx.roundRect(2, -72, 22, 28, 2); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(6, -66, 13, 2); ctx.fillRect(6, -61, 13, 2); }   // folder
+    else { ctx.fillStyle = '#c9a15a'; ctx.beginPath(); ctx.roundRect(-14, -70, 20, 26, 2); ctx.fill(); }
+    ctx.fillStyle = '#e3b08f'; ctx.fillRect(-3, -94, 6, 9);
+    ctx.beginPath(); ctx.arc(3, -98 + nod * .5, 10.5, 0, 7); ctx.fill();                                                    // head, tipped down at the leak
+    ctx.fillStyle = ['#2a1a10', '#8a8a8a', '#1b1b1b', '#6b4a2b'][(ph * 3 | 0) % 4]; ctx.beginPath(); ctx.arc(2, -100 + nod * .5, 10.6, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(9, -97 + nod * .5, 1.3, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#7a3b2a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(7, -92 + nod * .5); ctx.lineTo(11, -92.5 + nod * .5); ctx.stroke();
+    ctx.restore();
+  }
+  function drawSuits(t) {
+    if (!works || !works.convoy) return;
+    const k = s * 0.95, yv = 0.952 * H;
+    // three are already at the leak
+    [[22, -1, '#3a3a3f', '#1d4f9a', 'point', 1.9], [58, -1, '#5b4a3a', '#2a7a4a', 'chin', 2.7], [96, -1, '#1f2630', '#b8860b', 'folder', 3.4]]
+      .forEach(([dx, face, suit, tie, role, ph]) => { const x = works.x + dx * s; suitGuy(x, yv + hillY(x), k, face, suit, tie, role, t, ph); });
+    // three more get out of the Tiaki Wai truck and van once they have parked, and walk over to join them: [door dx, target dx, final facing, delay ms, suit, tie, role, phase]
+    if (works.crewT !== undefined) [[-646, -58, 1, 300, '#2b3a55', '#c0392b', 'folder', 0.6], [-334, -22, 1, 1300, '#4a3b52', '#d4a017', 'folder', 1.1], [-334, 132, -1, 2600, '#2f3a3a', '#8e2a2a', 'chin', 4.0]]
+      .forEach(([from, to, face, delay, suit, tie, role, ph]) => {
+        const tt = works.crewT - delay; if (tt < 0) return;
+        const dist = Math.abs(to - from), walked = Math.min(dist, 60 * tt / 1000), walking = walked < dist;
+        const dx = from + Math.sign(to - from) * walked, x = works.x + dx * s;
+        ctx.save(); ctx.globalAlpha = Math.min(1, tt / 350);                                          // steps out of the door
+        suitGuy(x, yv + (walking ? 4 * s : 0) + hillY(x), k, walking ? 1 : face, suit, tie, role, t, ph, walking ? 1 : 0);
+        ctx.restore();
+      });
+  }
+
+  // the Zany Zeus milk factory on the far side of the road: a plant with four big stainless-steel milk vats and a steaming stack
+  const FACTORY_SECONDS = 60;      // one comes along about this often
+  let factory = null, factoryTimer = params.has('factory') ? 800 : 30000;
+  // bring the next milk tanker on in time to reach the stop point once it has scrolled into view
+  function pullMilk(T) {
+    if (milkX !== null || radar) return;
+    const g = Math.max(1, FAR_PARALLAX * vNomG);
+    milkTimer = Math.min(milkTimer, Math.max(1500, (T - (W - 40 * s)) / g * 1000 + 500));
+  }
+  // if a factory or paddock is on its way in but its stop point isn't on screen yet, hold the next tanker back until it is
+  let milkHeld = false;
+  function holdForSite() {
+    if (milkHeld) { milkHeld = false; return false; }
+    if (radar) return false;                                    // a speed check is set up for this truck: it drives straight through, no stopping
+    const g = Math.max(1, FAR_PARALLAX * vNomG), edge = W - 40 * s, waits = [];
+    [factory ? factoryStopX() : null, paddock ? paddockStopX() : null].forEach(T => { if (T !== null && T >= edge && T < W + 900 * s) waits.push((T - edge) / g * 1000 + 300); });
+    if (!waits.length) return false;
+    milkHeld = true; milkTimer = Math.min.apply(null, waits);
+    return true;
+  }
+  // the Featherston and Seaview signs only ever appear with the paddock / the factory they belong to
+  function pushSiteSign(name, sub) {
+    const clear = signs.every(g => g.x < W - 330 * s || g.x > W + 200 * s);
+    signs.push({ x: W + (clear ? 40 : 360 * s), name: name, sub: sub });
+  }
+  let lastSite = null;              // 'factory' or 'paddock': whichever came last, so the two alternate and tankers get to drop off as well as pick up
+  function updateFactory(dt, v) {
+    factoryTimer -= dt;
+    if (!factory && factoryTimer <= 0 && (paddock || milkX !== null || signs.some(g => g.name))) factoryTimer = 1500;      // never on screen together, and wait for a clear lane so a tanker can come for this one
+    if (!factory && factoryTimer <= 0 && lastSite === 'factory') { factoryTimer = 2000; paddockTimer = Math.min(paddockTimer, 3000); }   // the sites take turns: a paddock is due next
+    if (!factory && factoryTimer <= 0) { lastSite = 'factory'; factory = { x: W + 260 * s }; pushSiteSign('Seaview', 'Bulk milk delivered'); pullMilk(factoryStopX()); factoryTimer = FACTORY_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
+    if (!factory) return;
+    factory.x -= v * FAR_PARALLAX * dt / 1000;
+    if (factory.x + 800 * s * 0.9 < -40 * s) factory = null;
+  }
+  function drawFactory(t, light) {
+    if (!factory) return;
+    const k = s * 0.9, n = light.night, c = (d, ni) => rgb(mix(d, ni, n)), x0 = factory.x, y = roadTop() - 4 * s + hillY(x0 + 400 * k);
+    ctx.save(); ctx.translate(x0, y); ctx.scale(k, k);
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(380, 3, 400, 8, 0, 0, 7); ctx.fill();
+    // grass apron / hardstand
+    ctx.fillStyle = c([150, 156, 160], [60, 66, 76]); ctx.fillRect(-20, -4, 780, 8);
+    // main building
+    ctx.fillStyle = c([226, 231, 236], [88, 96, 112]); ctx.fillRect(0, -112, 400, 108);
+    ctx.fillStyle = c([60, 70, 150], [34, 40, 90]); ctx.fillRect(0, -112, 400, 12);                                         // roof band
+    ctx.fillStyle = c([186, 194, 202], [70, 78, 92]); ctx.fillRect(0, -50, 400, 6);
+    // roller doors
+    for (let i = 0; i < 3; i++) { ctx.fillStyle = c([112, 124, 138], [44, 50, 62]); ctx.fillRect(24 + i * 68, -46, 52, 42); ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let q = 0; q < 6; q++) ctx.fillRect(24 + i * 68, -46 + q * 7, 52, 1.5); }
+    // windows (lit at night)
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = n > 0.3 ? 'rgba(255,214,120,' + (0.55 + 0.4 * n).toFixed(2) + ')' : '#6f8fb0'; ctx.fillRect(232 + (i % 3) * 50, -92 + (i / 3 | 0) * 28, 36, 18); }
+    // company sign with a lightning bolt
+    ctx.fillStyle = '#2a2f8f'; ctx.beginPath(); ctx.roundRect(14, -96, 196, 40, 6); ctx.fill();
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.moveTo(34, -92); ctx.lineTo(24, -74); ctx.lineTo(32, -74); ctx.lineTo(26, -58); ctx.lineTo(42, -78); ctx.lineTo(34, -78); ctx.lineTo(42, -92); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 27px Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('ZANY ZEUS', 52, -66);
+    // stack
+    ctx.fillStyle = c([150, 156, 164], [60, 66, 78]); ctx.fillRect(360, -190, 22, 80); ctx.fillStyle = c([190, 60, 60], [90, 34, 40]); ctx.fillRect(360, -190, 22, 8);
+    // four big milk vats
+    for (let i = 0; i < 4; i++) {
+      const vx = 428 + i * 84, vw = 66, top = -196, bot = -14;
+      ctx.fillStyle = c([90, 98, 108], [40, 46, 56]); [8, vw - 12].forEach(lx => ctx.fillRect(vx + lx, bot, 4, 14));                                                  // legs
+      const g = ctx.createLinearGradient(vx, 0, vx + vw, 0);
+      g.addColorStop(0, c([141, 152, 163], [48, 54, 66])); g.addColorStop(.3, c([240, 243, 246], [120, 128, 142])); g.addColorStop(.6, c([201, 209, 217], [84, 92, 106])); g.addColorStop(1, c([120, 130, 142], [40, 46, 58]));
+      ctx.fillStyle = g; ctx.fillRect(vx, top, vw, bot - top);
+      ctx.beginPath(); ctx.ellipse(vx + vw / 2, top, vw / 2, 13, 0, Math.PI, 0); ctx.fill();                                                                       // domed top
+      ctx.fillStyle = c([210, 218, 226], [90, 98, 112]); ctx.beginPath(); ctx.ellipse(vx + vw / 2, bot, vw / 2, 7, 0, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = 'rgba(60,70,80,.35)'; ctx.lineWidth = 1.6; [-150, -100, -52].forEach(by => { ctx.beginPath(); ctx.moveTo(vx, by); ctx.lineTo(vx + vw, by); ctx.stroke(); });   // welded bands
+      ctx.fillStyle = c([90, 98, 108], [40, 46, 56]); ctx.fillRect(vx + vw / 2 - 3, top - 22, 6, 12); ctx.beginPath(); ctx.arc(vx + vw / 2, top - 22, 6, Math.PI, 0); ctx.fill();   // vent
+      ctx.strokeStyle = c([70, 78, 88], [34, 40, 50]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(vx + vw - 8, bot); ctx.lineTo(vx + vw - 8, top + 10); ctx.stroke();       // ladder rail
+      ctx.lineWidth = 1; for (let q = bot - 10; q > top + 14; q -= 12) { ctx.beginPath(); ctx.moveTo(vx + vw - 12, q); ctx.lineTo(vx + vw - 4, q); ctx.stroke(); }
+    }
+    // pipework joining the vats and running back to the building
+    ctx.strokeStyle = c([170, 178, 188], [70, 78, 92]); ctx.lineWidth = 6; ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(400, -38); ctx.lineTo(760, -38); ctx.moveTo(400, -26); ctx.lineTo(760, -26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(380, -204); ctx.lineTo(760, -204); ctx.stroke();                                                                                  // catwalk rail
+    ctx.fillStyle = c([226, 231, 236], [88, 96, 112]); ctx.fillRect(400, -178, 28, 4);
+    ctx.restore();
+    // steam from the stack, blown left in a gust
+    for (let i = 0; i < 7; i++) {
+      const age = (t * 0.00035 + i / 7) % 1, sx = x0 + 371 * k - age * 30 * s - windAmt * age * 140 * s, sy = y - 196 * k - age * 110 * s, r = (7 + age * 22) * s;
+      ctx.fillStyle = 'rgba(' + (n > .5 ? '170,180,200' : '245,247,250') + ',' + (0.55 * (1 - age)).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill();
+    }
+  }
+
+  // dairy country on the far side of the road after a Featherston sign: a paddock with a dozen cows and a small milk vat
+  const FAR_PARALLAX = 0.5;   // factory and paddock are far from the road: just a touch faster than the pines on the hills (0.40)
+  const PADDOCK_PARALLAX = FAR_PARALLAX;
+  let paddock = null, paddockTimer = params.has('paddock') ? 600 : 20000;
+  const PADDOCK_SECONDS = 55;      // a paddock of cows comes along about this often (and always with a Featherston sign)
+  const factoryStopX = () => factory ? factory.x - 40 * s - MILK_LEN * s * TM * 0.85 : null;                 // where a tanker's front stops: pulled off the road to the LEFT of the factory
+  const paddockStopX = () => paddock ? paddock.x - 40 * s - MILK_LEN * s * TM * 0.85 : null;                 // ...and to the left of the paddock
+  let milkStop = null;
+  function startPaddock() {
+    if (factory || milkX !== null || signs.some(g => g.name)) { paddockTimer = 1500; return; }      // never on screen together, and wait for a clear lane: try again shortly
+    if (lastSite === 'paddock') { paddockTimer = 2000; factoryTimer = Math.min(factoryTimer, 3000); return; }   // the sites take turns: the factory is due next
+    lastSite = 'paddock';
+    const cows = [];
+    for (let i = 0; i < 12; i++) cows.push({ dx: 20 + (i + Math.random() * 0.8) * 41, row: i % 3, face: Math.random() < 0.5 ? -1 : 1, ph: Math.random() * 6, brown: Math.random() < 0.2, pat: [Math.random(), Math.random(), Math.random(), Math.random()], sc: 0.9 + Math.random() * 0.2 });
+    cows.sort((a, b) => a.row - b.row);
+    paddock = { x: W + 330 * s, cows }; pushSiteSign('Featherston');
+    paddockTimer = PADDOCK_SECONDS * 1000 * (0.7 + Math.random() * 0.6);
+    pullMilk(paddockStopX());                                    // a milk tanker comes to collect
+  }
+  function updatePaddock(dt, v) {
+    paddockTimer -= dt; if (!paddock && paddockTimer <= 0) startPaddock();
+    if (!paddock) return; paddock.x -= v * PADDOCK_PARALLAX * dt / 1000; if (paddock.x + 900 * s < -40 * s) paddock = null;
+  }
+  function cow(c, x, y, k, t, n) {
+    const cc = (d, ni) => rgb(mix(d, ni, n));
+    ctx.save(); ctx.translate(x, y); ctx.scale(k * c.face * c.sc, k * c.sc);
+    const graze = Math.max(0, Math.sin(t * 0.0011 + c.ph)) ;                                               // head down to graze, then up
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 0, 26, 4, 0, 0, 7); ctx.fill();
+    const body = c.brown ? cc([150, 96, 58], [60, 40, 28]) : cc([246, 246, 242], [120, 124, 134]), dark = c.brown ? cc([96, 58, 34], [40, 26, 18]) : cc([30, 30, 32], [18, 18, 22]), leg = c.brown ? dark : cc([226, 226, 222], [100, 104, 114]);
+    ctx.fillStyle = leg; [-19, -12, 12, 19].forEach(lx => ctx.fillRect(lx - 2.2, -16, 4.4, 16));
+    ctx.fillStyle = dark; [-19, -12, 12, 19].forEach(lx => ctx.fillRect(lx - 2.4, -3, 4.8, 3));
+    ctx.strokeStyle = leg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-27, -30); ctx.quadraticCurveTo(-32, -22, -30, -10); ctx.stroke();      // tail
+    ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-28, -38, 56, 26, 11); ctx.fill();
+    ctx.fillStyle = c.brown ? body : dark;
+    if (!c.brown) { ctx.beginPath(); ctx.ellipse(-12 + c.pat[0] * 8, -28, 8 + c.pat[1] * 4, 7, 0, 0, 7); ctx.ellipse(8 + c.pat[2] * 8, -31, 7 + c.pat[3] * 4, 6, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = cc([238, 164, 170], [120, 84, 90]); ctx.beginPath(); ctx.ellipse(10, -12, 5, 3, 0, 0, 7); ctx.fill();                                   // udder
+    ctx.save(); ctx.translate(24, -32); ctx.rotate(graze * 0.75);                                                                                          // neck and head, lowered to the grass
+    ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(-4, -6, 18, 12, 5); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(8, -6, 16, 13, 4); ctx.fill();
+    ctx.fillStyle = c.brown ? dark : dark; ctx.beginPath(); ctx.ellipse(12, -6, 5, 4, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = cc([238, 164, 170], [120, 84, 90]); ctx.beginPath(); ctx.roundRect(19, 0, 6, 7, 3); ctx.fill();
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.ellipse(8, -8, 3, 5, -0.6, 0, 7); ctx.fill();
+    ctx.restore(); ctx.restore();
+  }
+  function drawPaddock(t, light) {
+    if (!paddock) return;
+    const k = s * 0.8, n = light.night, c = (d, ni) => rgb(mix(d, ni, n)), x0 = paddock.x, base = roadTop() - 1 * s;      // set back just a little from the road
+    const gy = px => base + hillY(x0 + px * k);                                                                          // ground height follows the hills at every point
+    const W2 = 650;
+    // no separate field colour: the cows stand on the same grass as the rest of the verge and hills
+    // small milking shed and a small stainless milk vat at the right-hand end
+    const sx = x0 + 560 * k, sy = gy(560);
+    ctx.save(); ctx.translate(sx, sy); ctx.scale(k, k);
+    ctx.fillStyle = c([190, 196, 200], [70, 76, 90]); ctx.fillRect(10, -56, 84, 52);
+    ctx.fillStyle = c([150, 60, 52], [66, 34, 34]); ctx.beginPath(); ctx.moveTo(4, -56); ctx.lineTo(52, -76); ctx.lineTo(100, -56); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c([90, 98, 108], [40, 46, 56]); ctx.fillRect(26, -38, 26, 34);
+    ctx.fillStyle = n > 0.3 ? 'rgba(255,214,120,.9)' : '#6f8fb0'; ctx.fillRect(62, -44, 22, 16);
+    const g = ctx.createLinearGradient(-44, 0, -12, 0); g.addColorStop(0, c([141, 152, 163], [48, 54, 66])); g.addColorStop(.35, c([240, 243, 246], [120, 128, 142])); g.addColorStop(1, c([120, 130, 142], [40, 46, 58]));
+    ctx.fillStyle = g; ctx.fillRect(-44, -66, 32, 60); ctx.beginPath(); ctx.ellipse(-28, -66, 16, 6, 0, Math.PI, 0); ctx.fill();                          // the small vat
+    ctx.fillStyle = c([210, 218, 226], [90, 98, 112]); ctx.beginPath(); ctx.ellipse(-28, -6, 16, 5, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = c([90, 98, 108], [40, 46, 56]); [-42, -18].forEach(lx => ctx.fillRect(lx, -6, 3, 6));
+    ctx.strokeStyle = 'rgba(60,70,80,.35)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-44, -44); ctx.lineTo(-12, -44); ctx.stroke();
+    ctx.strokeStyle = c([170, 178, 188], [70, 78, 92]); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-12, -22); ctx.lineTo(10, -22); ctx.stroke();
+    ctx.restore();
+    // the herd, back row first
+    for (const cw of paddock.cows) { const px = cw.dx, x = x0 + px * k, y = gy(px) - (4 + cw.row * 10) * k; cow(cw, x, y, k * 1.1, t, n); }
+    // post and wire fence along the front of the paddock, following the ground
+    ctx.strokeStyle = c([110, 84, 56], [50, 40, 32]); ctx.lineWidth = 2.2 * k / (s * 0.9);
+    for (let px = -6; px <= W2; px += 40) { const x = x0 + px * k, y = gy(px) + 2 * k; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 22 * k); ctx.stroke(); }
+    ctx.strokeStyle = c([200, 205, 210], [90, 96, 108]); ctx.lineWidth = 1;
+    [-8, -16, -22].forEach(wy => { ctx.beginPath(); for (let px = -6; px <= W2 + 1; px += 25) { const x = x0 + px * k, y = gy(px) + wy * k; px === -6 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); });
   }
 
   // random gusts of wind: the turbine blades spin faster, clouds scud along and streaks blow past
@@ -793,7 +1086,8 @@
   function updateWind(dt) {
     if (windAge < 0) {
       windTimer -= dt;
-      if (windTimer <= 0) { windAge = 0; windTimer = WIND_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
+      if (windTimer <= 0) { windAge = 0; windTimer = WIND_SECONDS * 1000 * (0.7 + Math.random() * 0.6);
+        if (!factory && !paddock) { const clear = signs.every(g => g.x < W - 330 * s || g.x > W + 200 * s); signs.push({ x: W + (clear ? 40 : 360 * s), name: 'Wellington', sub: 'Windy Wellington' }); } }   // (no Wellington sign while a factory or paddock is on screen)   // every gust comes with a Wellington sign
     } else { windAge += dt / 1000; if (windAge > WIND_LENGTH) windAge = -1; }
     // ease up over 2.5 s, hold, ease down over 2.5 s
     const target = windAge < 0 ? 0 : Math.min(1, windAge / 2.5, (WIND_LENGTH - windAge) / 2.5);
@@ -849,13 +1143,15 @@
   }
 
   // occasional rain shower: grey cloud bank rolls in, rain falls for 5-10 seconds, then clears
-  const RAIN_SECONDS = 75;        // a shower comes about this often
-  let rainTimer = params.has('rain') ? 800 : 30000, rainAge = -1, rainLen = 8, rainAmt = 0;
+  const RAIN_SECONDS = 55;        // a shower comes about this often
+  let rainTimer = params.has('rain') || params.has('storm') ? 800 : 25000, rainAge = -1, rainLen = 8, rainAmt = 0;
+  const STORM_CHANCE = 0.6;      // chance a shower is a thunderstorm (lightning)
+  let storm = false, strikeTimer = 0, flashT = -1, bolt = null;
   const drops = Array.from({ length: 260 }, () => ({ x: Math.random(), y: Math.random(), v: .9 + Math.random() * .7, l: .6 + Math.random() * .8 }));
   function updateRain(dt) {
     if (rainAge < 0) {
       rainTimer -= dt;
-      if (rainTimer <= 0 && snowAge < 0) { rainAge = 0; rainLen = 5 + Math.random() * 5; rainTimer = RAIN_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
+      if (rainTimer <= 0 && snowAge < 0) { rainAge = 0; rainLen = 9 + Math.random() * 8; storm = params.has('storm') || params.has('rain') || Math.random() < STORM_CHANCE; strikeTimer = 1500 + Math.random() * 1500; rainTimer = RAIN_SECONDS * 1000 * (0.7 + Math.random() * 0.6); }
     } else {
       rainAge += dt / 1000;
       if (rainAge > rainLen + 3) rainAge = -1;
@@ -864,17 +1160,48 @@
     const cover = rainAge < 0 ? 0 : Math.min(1, rainAge / 1.5, (rainLen + 3 - rainAge) / 1.5);
     const target = rainAge < 0 ? 0 : (rainAge > 1 && rainAge < rainLen + 1 ? 1 : 0);
     rainAmt += (target - rainAmt) * Math.min(1, dt / 400);
+    if (storm && rainAge >= 0 && rainAmt > 0.5) {                      // thunderstorm: a flash every few seconds
+      strikeTimer -= dt;
+      if (strikeTimer <= 0) { flashT = 0; bolt = makeBolt(); strikeTimer = 2000 + Math.random() * 5000; }
+    }
+    if (flashT >= 0) { flashT += dt; if (flashT > 900) { flashT = -1; bolt = null; } }
     return Math.max(0, cover);
   }
   let rainCover = 0;
+  // brightness of the flash: a sharp double flicker then a fade
+  const flashLevel = () => flashT < 0 ? 0 : flashT < 110 ? 1 : flashT < 190 ? 0.2 : flashT < 300 ? 0.85 : Math.max(0, 0.85 * (1 - (flashT - 300) / 600));
+  function makeBolt() {                                              // a jagged bolt from the cloud bank down to the hills, with a branch or two
+    const x0 = (0.08 + Math.random() * 0.84) * W, yEnd = (0.50 + Math.random() * 0.12) * H, pts = [[x0, 0.04 * H]];
+    let x = x0, y = 0.04 * H;
+    while (y < yEnd) { y += (14 + Math.random() * 26) * s; x += (Math.random() - 0.5) * 70 * s; pts.push([x, Math.min(y, yEnd)]); }
+    const branches = [];
+    for (let i = 3; i < pts.length - 2; i += 3) if (Math.random() < 0.6) {
+      const b = [pts[i]]; let bx = pts[i][0], by = pts[i][1]; const dir = Math.random() < .5 ? -1 : 1;
+      for (let j = 0; j < 4; j++) { by += (12 + Math.random() * 18) * s; bx += dir * (14 + Math.random() * 26) * s; b.push([bx, by]); }
+      branches.push(b);
+    }
+    return { pts, branches };
+  }
+  function drawBolt() {
+    const f = flashLevel(); if (!bolt || f < 0.05) return;
+    ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = 'rgba(190,210,255,' + f.toFixed(2) + ')'; ctx.shadowBlur = 22 * s;
+    const trace = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); };
+    ctx.strokeStyle = 'rgba(255,255,255,' + f.toFixed(2) + ')'; ctx.lineWidth = 3.2 * s; trace(bolt.pts);
+    ctx.lineWidth = 1.6 * s; bolt.branches.forEach(trace);
+    ctx.restore();
+  }
+  function drawStormOverlay() {                                      // whole-screen lightning flash, and the foreground dims under the storm clouds
+    if (rainCover > 0.01) { ctx.fillStyle = 'rgba(18,24,40,' + (0.20 * rainCover).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    const f = flashLevel(); if (f > 0.02) { ctx.fillStyle = 'rgba(225,232,255,' + (0.38 * f).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+  }
   function drawRainClouds(t) {
     if (rainCover <= 0.01) return;
-    ctx.fillStyle = 'rgba(60,68,86,' + (0.55 * rainCover).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(44,50,66,' + (0.72 * rainCover).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H);
     const y0 = 0.02 * H;
-    for (let i = 0; i < 7; i++) {
-      const cx = ((i * 0.17 + 0.05) * W + Math.sin(t * 0.0001 + i) * 30 * s), cy = y0 + (i % 3) * 22 * s, r = 120 * s * (0.8 + (i % 3) * 0.25);
+    for (let i = 0; i < 9; i++) {
+      const cx = ((i * 0.13 + 0.03) * W + Math.sin(t * 0.0001 + i) * 30 * s), cy = y0 + (i % 3) * 22 * s, r = 120 * s * (0.8 + (i % 3) * 0.25);
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      g.addColorStop(0, 'rgba(70,76,92,' + (0.95 * rainCover).toFixed(3) + ')'); g.addColorStop(1, 'rgba(70,76,92,0)');
+      g.addColorStop(0, 'rgba(40,45,60,' + (0.97 * rainCover).toFixed(3) + ')'); g.addColorStop(1, 'rgba(40,45,60,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
     }
   }
@@ -955,12 +1282,13 @@
 
   // ---------- road ----------
   // rolling hills: now and then the road climbs over a crest and back down
+  const ROAD_HILLS = false;       // false = flat road, no hills
   const HILL_SECONDS = 35;        // a hill comes along about this often
   const hills = [];
   let hillTimer = params.has('hill') ? 600 : 14000;
   function updateHills(dt, v) {
     hillTimer -= dt;
-    if (hillTimer <= 0) {
+    if (ROAD_HILLS && hillTimer <= 0) {
       const r = Math.random(), amp = 22 + Math.pow(r, 1.4) * 105;       // a mix of gentle rises and big hills
       const sig = (230 + amp * 2.2 + Math.random() * 80) * s;           // bigger hills are also longer
       hills.push({ x: W + sig * 3, sig, a: amp * s });
@@ -1072,7 +1400,7 @@
       ctx.font = `bold ${29 * s}px Arial, sans-serif`;
       ctx.fillText(sg.name.toUpperCase(), x + w / 2, top + h * .40);
       ctx.font = `${15 * s}px Arial, sans-serif`;
-      ctx.fillText('Bulk water delivered', x + w / 2, top + h * .74);
+      ctx.fillText(sg.sub || 'Bulk water delivered', x + w / 2, top + h * .74);
       spots(x, top, w, h, light.night, s);
       ctx.restore();
     }
@@ -1129,12 +1457,21 @@
     ctx.lineTo(480, -131); ctx.bezierCurveTo(490, -130, 494, -124, 496, -112); ctx.lineTo(496, -84); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#ffd23f'; ctx.fillRect(452, -126, 3, 40);                  // hi-vis stripe
     // neck + head
+    if (o.shake) { ctx.save(); const yaw = Math.sin(t * 0.021); ctx.translate(hx - 2, hy + 6); ctx.scale(Math.cos((0.5 + 0.5 * yaw) * 1.15) * 0.95 + 0.05, 1); ctx.translate(-(hx - 2) + yaw * 1.5, -(hy + 6)); }   // shaking his head side to side (turning away and back)
+    if (o.female) {                                                                                                          // long hair falling behind her shoulders
+      const sw = Math.sin(t * 0.004 + (o.ph || 0)) * 2;
+      ctx.fillStyle = o.hair || '#3b2414'; ctx.beginPath(); ctx.ellipse(hx - 8 + sw * .3, hy + 9, 11, 23, 0.08, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx - 4, hy - 3, 13, 12, 0, 0, 7); ctx.fill();
+    }
     ctx.fillStyle = skinD; ctx.fillRect(465, -133, 10, 9);
     ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(hx, hy, 12.5, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.moveTo(481, hy - 1); ctx.lineTo(487, hy + 4); ctx.lineTo(481, hy + 5); ctx.closePath(); ctx.fill();   // nose
     ctx.fillStyle = skinD; ctx.beginPath(); ctx.arc(hx - 6, hy + 1, 3.2, 0, 7); ctx.fill();                                  // ear
     ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(hx + 6.5, hy - 2, 1.5, 0, 7); ctx.fill();                              // eye
-    if (o.grin) {                                                                                                             // big cheeky grin
+    if (o.female) { ctx.strokeStyle = '#1b1b1b'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx + 7.5, hy - 3.2); ctx.lineTo(hx + 10.2, hy - 5.2); ctx.moveTo(hx + 8, hy - 2); ctx.lineTo(hx + 10.6, hy - 2.8); ctx.stroke(); }   // lashes
+    if (o.shake) { ctx.strokeStyle = o.female ? '#c0392b' : '#7a3b2a'; ctx.lineWidth = 1.7; ctx.beginPath(); ctx.moveTo(hx + 2.5, hy + 8.5); ctx.quadraticCurveTo(hx + 6.5, hy + 5.5, hx + 10.5, hy + 8.5); ctx.stroke(); }   // disapproving mouth
+    else if (o.female && !o.grin) { ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.9; ctx.beginPath(); ctx.arc(hx + 6, hy + 5, 4, .25, 1.15); ctx.stroke(); }   // lipstick smile
+    else if (o.grin) {                                                                                                        // big cheeky grin
       ctx.fillStyle = '#5a1f16'; ctx.beginPath(); ctx.arc(hx + 6, hy + 4, 5.2, 0.05, 1.75); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(hx + 6, hy + 4, 5.2, 0.25, 1.1); ctx.lineTo(hx + 6, hy + 4); ctx.closePath(); ctx.fill();
     } else { ctx.strokeStyle = '#7a3b2a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(hx + 6, hy + 5, 4, .25, 1.15); ctx.stroke(); }   // smile
@@ -1142,6 +1479,7 @@
     ctx.fillStyle = o.cap; ctx.beginPath(); ctx.arc(hx, hy - 4, 13.2, Math.PI * 1.02, Math.PI * 2.0); ctx.closePath(); ctx.fill();
     ctx.fillRect(hx + 4, hy - 6, 19, 3.6);
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(hx + 2, hy - 12, 2.2, 0, 7); ctx.fill();
+    if (o.shake) ctx.restore();
     // steering wheel
     ctx.save(); ctx.translate(504, -121); ctx.rotate(-.5); ctx.fillStyle = '#11151a'; ctx.beginPath(); ctx.ellipse(0, 0, 3.6, 14, 0, 0, 7); ctx.fill(); ctx.restore();
     // arms: one on the wheel, the other raised to wave when a truck goes past
@@ -1228,7 +1566,7 @@
     ctx.beginPath(); ctx.moveTo(432, -116); ctx.lineTo(432, -52); ctx.stroke();       // door edge
     ctx.fillStyle = '#6c7683'; ctx.fillRect(436, -122, 14, 3.6);                       // handle
     // window glass (the driver sits behind it)
-    drawDriver(t, night, { clip: [[432, -168], [502, -168], [520, -130], [522, -118], [432, -118]], cap: '#0f4f9a', shirt: '#1b5fb4', amt: ourWave, ph: 0, grin: giggle > 0 });
+    drawDriver(t, night, { clip: [[432, -168], [502, -168], [520, -130], [522, -118], [432, -118]], cap: '#0f4f9a', shirt: '#1b5fb4', amt: ourWave, ph: 0, grin: giggle > 0 && giggleMsg === 'hehe', shake: giggle > 0 && giggleMsg === 'slow', female: OUR_DRIVER_FEMALE || params.has('ourfemale'), hair: '#5b3a1e' });
     const gl = ctx.createLinearGradient(432, -168, 520, -118);
     gl.addColorStop(0, `rgba(190,225,250,${(.30 - .18 * night).toFixed(2)})`); gl.addColorStop(1, 'rgba(120,170,215,.05)');
     ctx.fillStyle = gl; ctx.beginPath(); ctx.moveTo(432, -168); ctx.lineTo(502, -168); ctx.lineTo(520, -130); ctx.lineTo(522, -118); ctx.lineTo(432, -118); ctx.closePath(); ctx.fill();
@@ -1286,7 +1624,7 @@
     ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillText(str, 0, 0); ctx.restore();
   }
   function drawMilkTruck(xr, yG, t, light) {
-    const night = light.night, rot = (sc * 0.7) / (34 * s * TM);
+    const night = light.night, rot = (wd !== null ? wd : sc * 0.7) / (34 * s * TM);
     const bounce = Math.sin(t * 0.011 + 2) * 0.8 + Math.sin(t * 0.0041) * 0.5;
     const PU = '#7a2fa3', PU2 = '#a964d1', PU3 = '#d6b4ee';
     ctx.save(); ctx.translate(xr, yG + bounce * s * .8); ctx.scale(-s * TM, s * TM);   // faces left
@@ -1346,7 +1684,7 @@
     ctx.fillStyle = '#6c7683'; ctx.fillRect(556, -146, 16, 3.6);
     // driver behind the big window
     const win = [[546, -228], [644, -228], [664, -226], [669, -194], [670, -152], [546, -152]];
-    drawDriver(t, night, { dx: 113, dy: -58, clip: win.map(([x, y]) => [x - 113, y + 58]), cap: '#5b2a86', shirt: '#6a3a98', amt: milkWave, ph: 1.9, skin: '#d9a07c', skinD: '#bd825f' });
+    drawDriver(t, night, { dx: 113, dy: -58, clip: win.map(([x, y]) => [x - 113, y + 58]), cap: '#5b2a86', shirt: '#6a3a98', amt: milkWave, ph: 1.9, skin: '#d9a07c', skinD: '#bd825f', female: milkFemale, hair: milkHair });
     const gl = ctx.createLinearGradient(546, -228, 670, -152);
     gl.addColorStop(0, `rgba(190,225,250,${(.30 - .18 * night).toFixed(2)})`); gl.addColorStop(1, 'rgba(120,170,215,.05)');
     ctx.fillStyle = gl; ctx.beginPath(); win.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
@@ -1380,9 +1718,13 @@
 
   // ---------- the green Hydro Vac truck (drawn from the photo, comes along in the far lane now and then) ----------
   const HYDRO_LEN = 600, HYDRO_CHANCE = 0.4;      // chance that an oncoming truck is the Hydro Vac instead of the milk tanker
-  let milkKind = 'milk', milkCount = 0;
+  const FEMALE_CHANCE = 0.4;      // chance an oncoming truck is driven by a woman
+  const OUR_DRIVER_FEMALE = false;   // set true to make the Bulk Water truck's driver a woman (or add ?ourfemale=1)
+  const HAIRS = ['#3b2414', '#d8b25a', '#1b1b1b', '#8a3a1c', '#6b4a2b'];
+  let vanSay = 0, vanSaid = false;
+  let milkKind = 'milk', milkCount = 0, milkFemale = false, milkHair = HAIRS[0];
   function drawHydroTruck(xr, yG, t, light) {
-    const night = light.night, rot = (sc * 0.7) / (34 * s * TM);
+    const night = light.night, rot = (wd !== null ? wd : sc * 0.7) / (34 * s * TM);
     const bounce = Math.sin(t * 0.011 + 1) * 0.8 + Math.sin(t * 0.0043) * 0.5;
     const F = 0.3125, GR1 = '#14702c', GR2 = '#37a444', LIME = '#6fcb2e';
     ctx.save(); ctx.translate(xr, yG + bounce * s * .8); ctx.scale(-s * TM, s * TM);   // faces left
@@ -1489,7 +1831,7 @@
 
     // driver behind the side window
     const win = [[518, -176], [562, -176], [578, -135], [518, -128]];
-    drawDriver(t, night, { dx: 70, dy: -17, clip: win.map(([x, y]) => [x - 70, y + 17]), cap: '#1f6b32', shirt: '#2a8a3a', amt: milkWave, ph: 0.9, skin: '#e0a98a', skinD: '#c48766' });
+    drawDriver(t, night, { dx: 70, dy: -17, clip: win.map(([x, y]) => [x - 70, y + 17]), cap: '#1f6b32', shirt: '#2a8a3a', amt: milkWave, ph: 0.9, skin: '#e0a98a', skinD: '#c48766', female: milkFemale, hair: milkHair });
     const gl = ctx.createLinearGradient(518, -176, 578, -128);
     gl.addColorStop(0, `rgba(190,225,250,${(.30 - .18 * night).toFixed(2)})`); gl.addColorStop(1, 'rgba(120,170,215,.05)');
     ctx.fillStyle = gl; ctx.beginPath(); win.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
@@ -1516,7 +1858,7 @@
   const TB = TS * 0.82, MOTO_LEN = 125;
   let motoX = null, motoTimer = params.has('moto') ? 1200 : 70000;
   function drawPoliceBike(xr, yG, t, light) {
-    const night = light.night, rot = (sc * 3.0) / (20 * s * TB), flip = Math.floor(t / 110) % 2 === 0;
+    const night = light.night, rot = (wd !== null ? wd : sc * 3.0) / (20 * s * TB), flip = Math.floor(t / 110) % 2 === 0;
     const bounce = Math.sin(t * 0.03) * 0.5;
     ctx.save(); ctx.translate(xr, yG + bounce * s); ctx.scale(-s * TB, s * TB);        // faces left
     ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.beginPath(); ctx.ellipse(62, 2, 64, 5, 0, 0, 7); ctx.fill();
@@ -1569,17 +1911,87 @@
 
   // ---------- the flat-deck truck carrying the (orange) excavator, drawn from the photo ----------
   const FLAT_LEN = 590, FLAT_CHANCE = 0.25;
-  const KIND_LEN = k => k === 'hydro' ? HYDRO_LEN : k === 'flat' ? FLAT_LEN : MILK_LEN;
-  const KIND_CAB = k => k === 'hydro' ? 548 : k === 'flat' ? 520 : 590;
+  const VAN_LEN = 410, VAN_CHANCE = 0.25;                        // the white Ford Transit: a quick little van that overtakes the trucks' pace on the far side
+  const KIND_LEN = k => k === 'van' ? VAN_LEN : k === 'hydro' ? HYDRO_LEN : k === 'flat' ? FLAT_LEN : MILK_LEN;
+  const KIND_CAB = k => k === 'van' ? 300 : k === 'hydro' ? 548 : k === 'flat' ? 520 : 590;
   function pickKind() {                                          // which oncoming truck comes next
+    if (params.has('van')) return 'van';
     if (params.has('flat')) return 'flat';
     if (params.has('hydro')) return 'hydro';
     if (params.has('milk')) return 'milk';
+    if (Math.random() < (radar ? 0.5 : VAN_CHANCE)) return 'van';      // far more likely when there's a speed check set up: it has a radar detector
     const r = Math.random();
     return r < FLAT_CHANCE ? 'flat' : r < FLAT_CHANCE + HYDRO_CHANCE * 0.75 ? 'hydro' : 'milk';
   }
+
+  // ---------- white Ford Transit van (oncoming), faces left; local x: 0 = rear, VAN_LEN = front ----------
+  function drawTransit(xr, yG, t, light) {
+    const night = light.night, rot = (wd !== null ? wd : sc * 0.7) / (34 * s * TM);
+    const bounce = Math.sin(t * 0.016 + 1) * 0.7 + Math.sin(t * 0.005) * 0.4;
+    ctx.save(); ctx.translate(xr, yG + bounce * s * .6); ctx.scale(-s * TM * 2, s * TM * 2);      // drawn at twice the size
+    ctx.fillStyle = 'rgba(0,0,0,.26)'; ctx.beginPath(); ctx.ellipse(102, 2, 112, 6, 0, 0, 7); ctx.fill();
+    // body
+    const bg = ctx.createLinearGradient(0, -92, 0, -16); bg.addColorStop(0, '#ffffff'); bg.addColorStop(.6, '#eef1f4'); bg.addColorStop(1, '#b9c0c8');
+    ctx.fillStyle = bg; ctx.beginPath();
+    ctx.moveTo(3, -22); ctx.lineTo(1, -80); ctx.quadraticCurveTo(2, -90, 12, -90); ctx.lineTo(124, -90);
+    ctx.quadraticCurveTo(138, -90, 146, -76); ctx.lineTo(170, -52); ctx.quadraticCurveTo(190, -48, 199, -42); ctx.lineTo(201, -24);
+    ctx.lineTo(196, -16); ctx.lineTo(8, -16); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(60,70,80,.55)'; ctx.lineWidth = 1.6; ctx.stroke();
+    // sliding door and rear door seams, grey lower trim
+    ctx.beginPath(); ctx.moveTo(44, -86); ctx.lineTo(44, -22); ctx.moveTo(116, -86); ctx.lineTo(116, -22); ctx.moveTo(14, -86); ctx.lineTo(14, -22); ctx.stroke();
+    ctx.fillStyle = '#7f8993'; ctx.fillRect(4, -30, 196, 9);
+    ctx.fillStyle = '#c7ccd2'; ctx.fillRect(104, -62, 9, 3);                      // door handle
+    // cab window, driver
+    ctx.fillStyle = '#26394b'; ctx.beginPath(); ctx.moveTo(126, -82); ctx.lineTo(140, -82); ctx.lineTo(164, -54); ctx.lineTo(126, -54); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f0c8a0'; ctx.beginPath(); ctx.arc(144, -66, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3a2a1c'; ctx.beginPath(); ctx.arc(144, -69, 7, Math.PI * 1.05, Math.PI * 2.1); ctx.fill();
+    ctx.fillStyle = '#1b2733'; ctx.beginPath(); ctx.roundRect(134, -60, 22, 8, 2); ctx.fill();   // shoulders
+    // wing mirror, grille oval, bumper
+    ctx.fillStyle = '#222'; ctx.fillRect(162, -62, 8, 11);
+    ctx.fillStyle = '#2d3b4a'; ctx.beginPath(); ctx.ellipse(199, -34, 2.5, 6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2f36'; ctx.fillRect(190, -24, 12, 8);
+    // lights: headlight (front) and tail light (rear)
+    ctx.fillStyle = night > 0.3 ? '#fff6c8' : '#e8ecf0'; ctx.beginPath(); ctx.roundRect(190, -46, 10, 7, 2); ctx.fill();
+    ctx.fillStyle = '#d02020'; ctx.fillRect(0, -62, 4, 20);
+    // wheels
+    [38, 152].forEach(cx => {
+      ctx.save(); ctx.translate(cx, -17);
+      ctx.fillStyle = '#15191e'; ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill();
+      ctx.fillStyle = '#c4cad1'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill();
+      ctx.rotate(rot); ctx.strokeStyle = '#5c646d'; ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++) { ctx.rotate(Math.PI * 2 / 5); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(9, 0); ctx.stroke(); }
+      ctx.restore();
+    });
+    if (night > 0.25) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(198, -42, 1, 198, -42, 60); g.addColorStop(0, 'rgba(255,240,170,' + (0.7 * night).toFixed(2) + ')'); g.addColorStop(1, 'rgba(255,240,170,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(198, -42, 60, 0, 7); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+  }
+
+  // night-time floodlights on masts around the milk factory and the paddock
+  function mast(hx, gyy, h, spread, a, k) {
+    ctx.strokeStyle = 'rgba(70,76,86,' + (0.9).toFixed(2) + ')'; ctx.lineWidth = 3 * k; ctx.beginPath(); ctx.moveTo(hx, gyy); ctx.lineTo(hx, gyy - h); ctx.stroke();
+    ctx.fillStyle = '#3a4048'; ctx.fillRect(hx - 12 * k, gyy - h - 3 * k, 24 * k, 6 * k);           // lamp bar
+    ctx.globalCompositeOperation = 'lighter';
+    const top = gyy - h, g = ctx.createLinearGradient(0, top, 0, gyy);
+    g.addColorStop(0, 'rgba(255,244,200,' + (0.42 * a).toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,238,180,' + (0.10 * a).toFixed(3) + ')');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(hx - 10 * k, top + 3 * k); ctx.lineTo(hx + 10 * k, top + 3 * k); ctx.lineTo(hx + spread, gyy); ctx.lineTo(hx - spread, gyy); ctx.closePath(); ctx.fill();
+    const pool = ctx.createRadialGradient(hx, gyy, 0, hx, gyy, spread * 1.1); pool.addColorStop(0, 'rgba(255,240,180,' + (0.35 * a).toFixed(3) + ')'); pool.addColorStop(1, 'rgba(255,240,180,0)');
+    ctx.fillStyle = pool; ctx.beginPath(); ctx.ellipse(hx, gyy, spread * 1.1, spread * 0.22, 0, 0, 7); ctx.fill();
+    const hg = ctx.createRadialGradient(hx, top, 0, hx, top, 22 * k); hg.addColorStop(0, 'rgba(255,250,215,' + a.toFixed(3) + ')'); hg.addColorStop(1, 'rgba(255,250,215,0)');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(hx, top, 22 * k, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function drawFlood(t, light) {
+    const a = smooth(0.2, 0.55, light.night);
+    if (a < 0.02) return;
+    if (factory) { const k = s * 0.9, gyy = roadTop() - 4 * s; [-10, 395, 775].forEach(lx => mast(factory.x + lx * k, gyy, 250 * k, 125 * k, a, k)); }
+    if (paddock) { const k = s * 0.8, gyy = roadTop() - 1 * s; [20, 300, 600].forEach(px => mast(paddock.x + px * k, gyy, 210 * k, 110 * k, a, k)); }
+  }
   function drawFlatTruck(xr, yG, t, light) {
-    const night = light.night, rot = (sc * 0.7) / (34 * s * TM), F = 0.35;
+    const night = light.night, rot = (wd !== null ? wd : sc * 0.7) / (34 * s * TM), F = 0.35;
     const bounce = Math.sin(t * 0.0105 + 3) * 0.9 + Math.sin(t * 0.0039) * 0.5;
     const OR = '#ff7a14', OR2 = '#c85500', BL = '#1a64c4';
     ctx.save(); ctx.translate(xr, yG + bounce * s * .8); ctx.scale(-s * TM, s * TM);   // faces left
@@ -1647,7 +2059,7 @@
 
     // driver behind the side window
     const win = [[478, -194], [553, -194], [563, -140], [476, -122]];
-    drawDriver(t, night, { dx: 50, dy: -14, clip: win.map(([x, y]) => [x - 50, y + 14]), cap: '#ff7a14', shirt: '#ff7a14', amt: milkWave, ph: 2.6, skin: '#e3b08f', skinD: '#c48f6c' });
+    drawDriver(t, night, { dx: 50, dy: -14, clip: win.map(([x, y]) => [x - 50, y + 14]), cap: '#ff7a14', shirt: '#ff7a14', amt: milkWave, ph: 2.6, skin: '#e3b08f', skinD: '#c48f6c', female: milkFemale, hair: milkHair });
     const gl = ctx.createLinearGradient(478, -194, 563, -122);
     gl.addColorStop(0, `rgba(190,225,250,${(.30 - .18 * night).toFixed(2)})`); gl.addColorStop(1, 'rgba(120,170,215,.05)');
     ctx.fillStyle = gl; ctx.beginPath(); win.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
@@ -1670,7 +2082,7 @@
   const TP = TS * 0.78;
   const POLICE_LEN = 300;
   function drawPoliceCar(xr, yG, t, light, ph) {
-    const night = light.night, rot = (sc * 1.4) / (21 * s * TP);
+    const night = light.night, rot = (wd !== null ? wd : sc * 1.4) / (21 * s * TP);
     const flip = Math.floor((t + (ph || 0)) / 130) % 2 === 0;
     const bounce = Math.sin(t * 0.03) * 0.5;
     ctx.save(); ctx.translate(xr, yG + bounce * s); ctx.scale(-s * TP, s * TP);        // faces left
@@ -1775,7 +2187,7 @@
   const clockEl = document.getElementById('clock');
   if (!SHOW_CLOCK) clockEl.style.display = 'none';
   const corners = [['auto', '3%', '4%', 'auto'], ['3%', 'auto', '4%', 'auto'], ['3%', 'auto', 'auto', '4%'], ['auto', '3%', 'auto', '4%']]; // top,right? see place()
-  let corner = 0;
+  let corner = 0, clockBlown = false, clockGone = false, clockT = 0;
   function placeClock(fade) {
     const set = () => {
       const c = [[{ top: '3%', right: '3%' }], [{ top: '3%', left: '3%' }], [{ bottom: '3%', left: '3%' }], [{ bottom: '3%', right: '3%' }]][corner++ % 4][0];
@@ -1804,10 +2216,20 @@
     const light = drawSky(h, t);
     drawClouds(dt, light);
     updateWind(dt);
+    if (SHOW_CLOCK) {                                              // in a gust the clock and date are blown right off the screen; when the wind stops they fade back in where they belong
+      if (windAmt > 0.01) {
+        clockBlown = true;
+        clockT = Math.min(1, clockT + (windAmt > 0.12 ? dt / 3800 : 0)); const p = smooth(0, 1, clockT); if (clockT >= 1) clockGone = true;   // takes about 4 s to blow across and off
+        const dist = clockEl.offsetLeft + clockEl.offsetWidth + 60;
+        clockEl.style.transform = `translate(${(-p * dist).toFixed(1)}px, ${(Math.sin(t * 0.004) * 14 * Math.min(1, windAmt * 2) * (1 - p * 0.5)).toFixed(1)}px) rotate(${(Math.sin(t * 0.009) * 6 * windAmt - 8 * p).toFixed(2)}deg)`;
+        if (clockGone) clockEl.classList.add('hide');
+      } else if (clockBlown) { clockBlown = false; clockGone = false; clockT = 0; clockEl.style.transform = ''; clockEl.classList.remove('hide'); }
+    }
     updateHills(dt, v);
     rainCover = updateRain(dt);
     updateSnow(dt);
     drawRainClouds(t);
+    drawBolt();
     drawBirds(dt, t, light);
     drawMeteors(dt, light);
     drawPlane(dt, t, light);
@@ -1819,31 +2241,86 @@
     drawRoad(light);
 
     signTimer -= dt;
-    if (signTimer <= 0) { signTimer = 26000; signs.push(signIdx % 3 === 2 ? (signIdx++, { x: W + 40, board: true }) : { x: W + 40, name: PLACES[signIdx++ % PLACES.length] }); }
+    if (signTimer <= 0 && (factory || paddock) && signIdx % 3 !== 2) signTimer = 1500;      // no other place-name signs while the factory or paddock (with its own Seaview / Featherston sign) is on screen: hold it back
+    if (signTimer <= 0) {
+      signTimer = 26000;
+      if (signIdx++ % 3 === 2) signs.push({ x: W + 40, board: true });
+      else { const nm = PLACES[nameIdx++ % PLACES.length]; signs.push({ x: W + 40, name: nm }); }
+    }
     for (let i = signs.length - 1; i >= 0; i--) { signs[i].x -= v * dt / 1000; if (signs[i].x < -420 * s) signs.splice(i, 1); }
-    drawSigns(light);
     updateRadar(dt, v);
     updateWorks(dt, v, light);
     updateBroke(dt, v, light);
+    updateFactory(dt, v); drawFactory(t, light);
+    updatePaddock(dt, v); drawPaddock(t, light); drawFlood(t, light);
+    drawSigns(light);                                            // road-side signs stand in front of the paddock and factory                  // the milk factory, behind everything else on the far side
     drawKids(t);                                                 // far side of the road, behind the trucks
     drawRadar(t, light);
+    drawFarSignal(t);                                            // traffic light on the far verge for the oncoming lane
 
     // oncoming Bulk Milk truck in the far lane, about once a minute
     milkTimer -= dt;
-    if (milkX === null && milkTimer <= 0) { milkCount++; milkKind = pickKind(); milkX = W + (KIND_LEN(milkKind) * s * TM) + 10; milkTimer = MILK_EVERY + (Math.random() - .5) * MILK_EVERY * 0.3; }
+    if (milkX === null && milkTimer <= 0 && !holdForSite()) { milkCount++; milkKind = pickKind(); milkStop = null; milkPull = 0; vanSaid = false; vanSay = 0;
+      { const opts = []; if (factory && factoryStopX() < W - 40 * s) opts.push('factory'); if (paddock && paddockStopX() < W - 40 * s) opts.push('paddock');
+        if (!radar && opts.length && (params.has('stops') || Math.random() < 0.9)) { milkKind = 'milk'; milkStop = { dest: opts[Math.random() * opts.length | 0], state: 'approach', wait: 0, ramp: 0 }; } }   // sometimes the tanker is on its way to the factory or the paddock vat
+      milkFemale = params.has('female') || Math.random() < FEMALE_CHANCE; milkHair = HAIRS[Math.random() * HAIRS.length | 0]; milkX = W + (KIND_LEN(milkKind) * s * TM) + 10; milkTimer = MILK_EVERY + (Math.random() - .5) * MILK_EVERY * 0.3; }
     ourWave = milkWave = ourFlash = milkFlash = 0;
     if (santaNear > 0.03) { ourWave = Math.max(ourWave, santaNear); if (santaNear > 0.45) ourFlash = Math.sin(t * 0.006) > 0 ? 1 : 0; }   // our driver waves and indicates back at Santa
     if (bdWave > 0.03) { ourWave = bdWave; if (bdWave > 0.3) ourFlash = Math.sin(t * 0.0125) > 0 ? 1 : 0; }
     if (milkX !== null) {
-      milkX -= (v + 0.65 * vNom) * dt / 1000;            // oncoming traffic keeps moving while we wait
+      let rel = (milkKind === 'van' ? 1.45 : 0.65) * vNom;      // oncoming traffic keeps moving while we wait (the van is in more of a hurry)
+      if (milkKind === 'van' && radar && radar.seen === milkCount) {      // its radar detector goes off: it brakes hard for the speed check, then speeds up again
+        const d = (milkX - VAN_LEN * s * TM) - radar.x, slowK = (1 - smooth(150 * s, 900 * s, d)) * smooth(-500 * s, -150 * s, d);
+        rel -= (rel - 0.6 * vNom) * slowK;
+        if (d < 30 * s && !vanSaid) { vanSaid = true; vanSay = 4200; }
+      }
+      if (milkStop && milkStop.state === 'approach' && (milkStop.dest === 'factory' ? !factory : !paddock)) milkStop = null;   // its stop scrolled away before it got there: it just carries on, no pulling over
+      if (milkStop) {                                     // heading for the Zany Zeus factory or the paddock vat: slow, stop, load, then carry on
+        const ms = milkStop, T = ms.dest === 'factory' ? factoryStopX() : paddockStopX();
+        if (T === null && ms.state !== 'leave') { ms.state = 'leave'; ms.ramp = 0; }
+        const gr = FAR_PARALLAX * v - v;                    // the factory and paddock scroll slower than the road, so "stopped there" means keeping pace with them
+        if (ms.state === 'approach') {
+          const d = (milkX - KIND_LEN(milkKind) * s * TM) - T;
+          rel = Math.min(rel, gr + Math.sqrt(2 * 120 * s * Math.max(0, d)));      // closing speed on the stop point falls to zero at the line
+          milkPull = smooth(0, 1, 1 - d / (460 * s));                            // swing off the road onto the verge as it nears the stop point
+          if (d <= 3 * s && Math.abs(rel - gr) < 0.06 * vNom) { ms.state = 'wait'; ms.wait = 0; milkPull = 1; }
+        } else if (ms.state === 'wait') { rel = gr; ms.wait += dt; if (ms.wait > 6000) { ms.state = 'leave'; ms.ramp = 0; } }
+        else { ms.ramp = Math.min(1, ms.ramp + dt / 2600); rel = gr * (1 - ms.ramp); milkPull = 1; }      // hose off, then it just sits on the verge and drifts off the left of the screen with the scenery
+      }
+      if (milkPull < 0.5) rel = farRel(milkX - KIND_LEN(milkKind) * s * TM, rel, v);   // and it stops for the lights on its side too (not once it is parked on the verge)
+      if (!milkStop) milkPull = Math.max(0, milkPull - dt / 500);
+      milkWheel += Math.max(rel, 0) * dt / 1000;                      // wheels only turn when the truck is actually rolling along the road
+      milkX -= (v + rel) * dt / 1000;
       const yFar = 0.797 * H;
       // both drivers wave while the two cabs are alongside each other
-      const ourCab = W * TRUCK_X - 274 * s * TS + 485 * s * TS, milkCab = milkX - KIND_CAB(milkKind) * s * TM - (milkKind !== 'milk' ? 150 * s : 0);   // hydro cab is shorter: wave while its driver can still be seen
+      const ourCab = W * TRUCK_X - 274 * s * TS + 485 * s * TS, milkCab = milkX - KIND_CAB(milkKind) * s * TM - (milkKind !== 'milk' && milkKind !== 'van' ? 150 * s : 0);   // hydro cab is shorter: wave while its driver can still be seen
       const near = 1 - smooth(150 * s, 330 * s, Math.abs(ourCab - milkCab));
       ourWave = Math.max(ourWave, near); milkWave = clamp(near * 1.15, 0, 1);
       if (near > 0.3) { ourFlash = milkFlash = Math.sin(t * 0.0125) > 0 ? 1 : 0; }   // both blink their indicators
-      const half = KIND_LEN(milkKind) / 2, drawFn = milkKind === 'hydro' ? drawHydroTruck : milkKind === 'flat' ? drawFlatTruck : drawMilkTruck;
-      onHill(milkX - half * s * TM, (half - 90) * s * TM, yFar, () => drawFn(milkX, yFar, t, light));
+      const half = KIND_LEN(milkKind) / 2, drawFn = milkKind === 'van' ? drawTransit : milkKind === 'hydro' ? drawHydroTruck : milkKind === 'flat' ? drawFlatTruck : drawMilkTruck;
+      const yPk = roadTop() - 3 * s, yM = yFar + (yPk - yFar) * milkPull, scp = 1 - 0.15 * milkPull, frontX = milkX - KIND_LEN(milkKind) * s * TM;
+      wd = milkWheel;
+      ctx.save(); ctx.translate(frontX, yM); ctx.scale(scp, scp); ctx.translate(-frontX, -yM);      // parked on the verge it sits a little further back, so a little smaller
+      onHill(milkX - half * s * TM, (half - 90) * s * TM, yM, () => drawFn(milkX, yM, t, light));
+      ctx.restore(); wd = null;
+      if (milkStop && (milkStop.state === 'wait' || (milkStop.state === 'leave' && milkStop.ramp < 0.22))) {      // topping up: hose from the vat to the tanker
+        const ms2 = milkStop, hamt = ms2.state === 'wait' ? Math.min(1, ms2.wait / 800) : 1 - ms2.ramp / 0.22, k0 = s * TM;
+        let p0 = null;
+        if (ms2.dest === 'factory' && factory) { const kf = s * 0.9; p0 = { x: factory.x + 426 * kf, y: roadTop() - 4 * s - 26 * kf }; }
+        else if (ms2.dest === 'paddock' && paddock) { const kp = s * 0.8; p0 = { x: paddock.x + 516 * kp, y: roadTop() - 1 * s - 22 * kp }; }
+        if (p0) drawHose(p0, { x: frontX + (milkX - 2 * k0 - frontX) * scp, y: yM - 100 * k0 * scp }, yPk, hamt, s);
+      }
+      if (milkKind === 'van' && vanSay > 0) {                         // the driver's relieved speech bubble
+        vanSay -= dt; if (milkX - 110 * s * TM < 60 * s) vanSay = 0;      // the bubble goes with the van
+        const a = clamp(Math.min(vanSay / 400, (4200 - vanSay) / 250), 0, 1), bw = 400 * s, bh = 44 * s;
+        const cx = milkX - 110 * s * TM, bx = clamp(cx - 40 * s, bw / 2 + 8 * s, W - bw / 2 - 8 * s), by = yM - 236 * s * TM - 22 * s;
+        ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#222'; ctx.lineWidth = 2 * s;
+        ctx.beginPath(); ctx.roundRect(bx - bw / 2, by - bh, bw, bh, 14 * s);
+        ctx.moveTo(cx - 12 * s, by - 1 * s); ctx.lineTo(cx, by + 20 * s); ctx.lineTo(cx + 12 * s, by - 1 * s);
+        ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(cx - 10 * s, by - 3 * s, 22 * s, 4 * s);
+        ctx.fillStyle = '#222'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold ' + (21 * s) + 'px Arial, sans-serif';
+        ctx.fillText('Phew - my radar saved me again hehe', bx, by - bh / 2 + 1 * s); ctx.restore();
+      }
       if (milkX < -20 * s) milkX = null;
     }
 
@@ -1854,11 +2331,14 @@
       policeX = W + (POLICE_LEN * s * TP) + 10; policeTimer = POLICE_EVERY + (Math.random() - .5) * POLICE_EVERY * 0.2;
     }
     if (policeX !== null) {
-      policeX -= (v + 1.7 * vNom) * dt / 1000;
+      const prl = farRel(policeX - POLICE_LEN * s * TP, 1.7 * vNom, v); policeWheel += prl * 0.82 * dt / 1000;
+      policeX -= (v + prl) * dt / 1000;
       const gap = POLICE_LEN * s * TP * 1.45;                  // two cars, one close behind the other
       const yP = 0.797 * H, hp = 110 * s * TP, cp = 150 * s * TP;
+      wd = policeWheel;
       onHill(policeX + gap - cp, hp, yP, () => drawPoliceCar(policeX + gap, yP, t, light, 130));
       onHill(policeX - cp, hp, yP, () => drawPoliceCar(policeX, yP, t, light, 0));
+      wd = null;
       if (policeX + gap < -20 * s) policeX = null;
     }
 
@@ -1868,9 +2348,12 @@
       motoX = W + MOTO_LEN * s * TB + 10; motoTimer = MOTO_SECONDS * 1000 * (0.7 + Math.random() * 0.6);
     }
     if (motoX !== null) {
-      motoX -= (v + 2.0 * vNom) * dt / 1000;
+      const mrl = farRel(motoX - MOTO_LEN * s * TB, 2.0 * vNom, v); motoWheel += mrl * 1.5 * dt / 1000;
+      motoX -= (v + mrl) * dt / 1000;
       const yM = 0.797 * H;
+      wd = motoWheel;
       onHill(motoX - 62 * s * TB, 46 * s * TB, yM, () => drawPoliceBike(motoX, yM, t, light));
+      wd = null;
       if (motoX < -20 * s) motoX = null;
     }
 
@@ -1885,7 +2368,9 @@
     drawWind(dt);
     drawVerge(light);
     drawWorks(t);
+    drawTiakiTruck(t);
     drawVan(t);
+    drawSuits(t);
     drawSignal(t);
     if (braking) {                                               // brake lights
       const bx2 = x0 + 4 * s * TS, by2 = yG - 77 * s * TS; ctx.globalCompositeOperation = 'lighter';
@@ -1896,7 +2381,7 @@
     if (giggle > 0) {                                            // speech bubble over our driver
       giggle -= dt;
       const a = clamp(Math.min(giggle / 400, (3600 - giggle) / 250), 0, 1);
-      const bx = x0 + 470 * s * TS, by = yG + hillY(bx) - 285 * s * TS + Math.sin(t * 0.012) * 1.5 * s, bw = 118 * s, bh = 44 * s;
+      const bx = x0 + 470 * s * TS, by = yG + hillY(bx) - 285 * s * TS + Math.sin(t * 0.012) * 1.5 * s, bw = (giggleMsg === 'slow' ? 200 : 118) * s, bh = 44 * s;
       ctx.save(); ctx.globalAlpha = a;
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#222'; ctx.lineWidth = 2 * s;
       ctx.beginPath(); ctx.roundRect(bx - bw / 2, by - bh, bw, bh, 14 * s);
@@ -1904,10 +2389,11 @@
       ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.fillRect(bx - 12 * s, by - 3 * s, 18 * s, 4 * s);
       ctx.fillStyle = '#222'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold ' + (24 * s) + 'px Arial, sans-serif';
-      ctx.fillText('hehehe', bx, by - bh / 2 + 1 * s); ctx.restore();
+      ctx.fillText(giggleMsg === 'slow' ? 'Slow down mate' : 'hehehe', bx, by - bh / 2 + 1 * s); ctx.restore();
     }
 
     // soft night darkening over everything for mood
+    drawStormOverlay();
     if (light.night > 0.01) { ctx.fillStyle = `rgba(2,6,20,${(light.night * 0.10).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
     requestAnimationFrame(frame);
   }
