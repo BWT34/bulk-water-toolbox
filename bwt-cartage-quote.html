@@ -148,24 +148,24 @@
   const RATE_FIELD_NAME = 'FAFEstimate'; // internal name of the FAF Estimate number field (gets the rate); leave empty to skip
   // Internal names: form builder > Settings > Developer Mode > "Customize Field Names?" shows them under each field.
 
-  // Round-trip km upper limit -> rate. Matches the 12 Oct 2026 schedule.
+  // Round-trip km upper limit -> rate. Matches the 8 Nov 2026 schedule.
   const BANDS = [
-    { max: 10,  rate: 3.70 },
-    { max: 20,  rate: 7.50 },
-    { max: 30,  rate: 11.00 },
-    { max: 40,  rate: 15.00 },
-    { max: 50,  rate: 18.50 },
-    { max: 60,  rate: 22.00 },
-    { max: 70,  rate: 26.00 },
-    { max: 80,  rate: 30.00 },
-    { max: 90,  rate: 33.50 },
-    { max: 100, rate: 37.00 },
-    // Over 100 km round trip: not on the printed schedule, priced at the 100 km rate plus $3.50 per extra 10 km
-    { max: 110, rate: 40.50, extra: true },
-    { max: 120, rate: 44.00, extra: true },
-    { max: 130, rate: 47.50, extra: true },
-    { max: 140, rate: 51.00, extra: true },
-    { max: 150, rate: 54.50, extra: true }
+    { max: 10,  rate: 3.36 },
+    { max: 20,  rate: 6.72 },
+    { max: 30,  rate: 10.08 },
+    { max: 40,  rate: 13.44 },
+    { max: 50,  rate: 16.80 },
+    { max: 60,  rate: 20.16 },
+    { max: 70,  rate: 23.52 },
+    { max: 80,  rate: 26.88 },
+    { max: 90,  rate: 30.24 },
+    { max: 100, rate: 33.60 },
+    // Over 100 km round trip: not on the printed schedule, priced at the 100 km rate plus $3.36 per extra 10 km
+    { max: 110, rate: 36.96, extra: true },
+    { max: 120, rate: 40.32, extra: true },
+    { max: 130, rate: 43.68, extra: true },
+    { max: 140, rate: 47.04, extra: true },
+    { max: 150, rate: 50.40, extra: true }
   ];
 
   const $ = (id) => document.getElementById(id);
