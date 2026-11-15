@@ -89,11 +89,29 @@
         return null;
     }
 
+    // Some forms (e.g. the Daily Service Delivery Sheet) have Start Location as an ADDRESS field
+    // (a fieldset with a legend) instead of the Upper Hutt / Palmerston North dropdown.
+    const START_LEGEND_MATCH = /start location/i;
+    function findStartFieldset() {
+        for (const fs of document.querySelectorAll('fieldset')) {
+            const legend = fs.querySelector('legend');
+            if (legend && START_LEGEND_MATCH.test(legend.textContent.trim())) return fs;
+        }
+        return null;
+    }
+    function getStartFromFieldset() {
+        const fs = findStartFieldset();
+        if (!fs) return null;
+        const parts = Array.from(fs.querySelectorAll('input.el-input__inner, input[type="text"]'))
+            .map(i => (i.value || '').trim()).filter(Boolean);
+        return parts.length ? parts.join(', ') + ', New Zealand' : null;
+    }
+
     function getStartAddress() {
         const key = startControlText(findStartControl()).trim().toLowerCase();
         if (DEPOTS[key]) return DEPOTS[key];
         for (const name in DEPOTS) if (key.includes(name)) return DEPOTS[name];
-        return null;
+        return getStartFromFieldset();      // no dropdown on this form: use the Start Location address fields
     }
 
     function getEndAddress() {
@@ -217,7 +235,7 @@
 
     function watchForFields() {
 
-        const startFound = !!findStartControl();
+        const startFound = !!findStartControl() || !!findStartFieldset();
         const endFound = attachListenerToLabeledInput(END_LABEL_TEXT);
 
         if (startFound && endFound) {
@@ -232,6 +250,11 @@
         }
 
         console.log('BWT FAF: still waiting — Start Location found:', startFound, '| Address found:', endFound);
+        if (!startFound && !window.__bwtFafListed) {      // once: list what IS on the page so the label can be matched
+            window.__bwtFafListed = true;
+            console.log('BWT FAF: labels on page:', Array.from(document.querySelectorAll('label.cog-label')).map(l => l.textContent.trim()));
+            console.log('BWT FAF: fieldset legends on page:', Array.from(document.querySelectorAll('fieldset legend')).map(l => l.textContent.trim()));
+        }
 
         // Not all fields rendered yet — CognitoForms is a SPA
         setTimeout(watchForFields, 500);
