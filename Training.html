@@ -9,21 +9,30 @@
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
+    min-height: 100vh;
+    color: white;
+    position: relative;
+}
 
-    background: 
+/* Fixed backdrop layer - pinned behind everything; sized to the real
+   visible screen so no white bands appear after pressing Back. */
+.bg-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    z-index: -1;
+
+    background:
         linear-gradient(rgba(0,50,50,0.45), rgba(0,30,30,0.60)),
         url('trucks.jpg');
 
     background-size: cover;
-    background-position: center top; /* ✅ better alignment */
+    background-position: center top;
     background-repeat: no-repeat;
-
-    
-    background-attachment: fixed;
-    
-    min-height: 100vh; /* ✅ fills screen */
-
-    color: white;
 }
 
 /* HEADER */
@@ -131,10 +140,26 @@ body {
     font-size: 42px;
     margin-bottom: 12px;
 }
+
+/* Colour icon images - change these two numbers to resize every icon */
+.icon img {
+    width: 88px;
+    height: 88px;
+}
+
+@media (max-width: 768px) {
+    .icon img {
+        width: 72px;
+        height: 72px;
+    }
+}
 </style>
 </head>
 
 <body>
+
+<!-- Fixed background layer -->
+<div class="bg-fixed"></div>
 
 <!-- LOGO -->
 <div class="header">
@@ -207,5 +232,17 @@ body {
 
 </div>
 
+<script>
+// Fix white bands after pressing Back: re-layout when restored from cache
+window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+        document.body.style.display = 'none';
+        document.body.offsetHeight;
+        document.body.style.display = '';
+    }
+});
+</script>
+
 </body>
 </html>
+
