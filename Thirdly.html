@@ -22,8 +22,10 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    right: 0;
+    bottom: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
     z-index: -1;
 
     background: 
@@ -266,5 +268,16 @@ body {
 </a>
 </div>
 
+
+<script>
+// Fix white bands after pressing Back: re-layout when restored from cache
+window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+        document.body.style.display = 'none';
+        document.body.offsetHeight;
+        document.body.style.display = '';
+    }
+});
+</script>
 </body>
 </html>
