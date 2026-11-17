@@ -131,6 +131,19 @@ body {
     font-size: 42px;
     margin-bottom: 12px;
 }
+
+/* Colour icon images - change these two numbers to resize every icon */
+.icon img {
+    width: 88px;
+    height: 88px;
+}
+
+@media (max-width: 768px) {
+    .icon img {
+        width: 72px;
+        height: 72px;
+    }
+}
 </style>
 </head>
 
@@ -154,7 +167,7 @@ body {
 </a>
 
     <a class="card" href="weather.html">
-    <div class="icon">🌦️🚛</div>
+    <div class="icon"><img src="icons/weather-traffic-alerts.svg" width="56" height="56" alt="" style="display:block;margin:0 auto;"></div>
     Weather
 </a>
 
@@ -164,12 +177,12 @@ body {
 </a>
     
     <a class="card" href="daily-service-delivery.html">
-    <div class="icon">💳</div>
+    <div class="icon"><img src="icons/daily-service-delivery.svg" width="56" height="56" alt="" style="display:block;margin:0 auto;"></div>
     POC Daily Delivery
 </a> 
     
     <a class="card" href="traffic.html">
-    <div class="icon">🌦️🚛</div>
+    <div class="icon"><img src="icons/regional-traffic-alerts.svg" width="56" height="56" alt="" style="display:block;margin:0 auto;"></div>
     Regional Traffic Alerts
 </a>
     
