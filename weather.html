@@ -225,11 +225,27 @@ function normalizeRegion(name){
         .trim();
 }
 
+// ---- Network helper: fetch JSON but never wait forever ----
+async function fetchJson(url, ms){
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms || 8000);
+
+    try{
+        const res = await fetch(url, { signal: controller.signal });
+        return await res.json();
+    }
+    finally{
+        clearTimeout(timer);
+    }
+
+}
+
 async function fetchTrafficEvents(){
 
     try{
 
-        const data = await fetch(TRAFFIC_WORKER_URL).then(r => r.json());
+        const data = await fetchJson(TRAFFIC_WORKER_URL, 8000);
 
         return (data.response.roadevent || []).filter(event => {
             if(event.status !== 'Active') return false;
@@ -396,7 +412,7 @@ async function fetchWeatherFor(lat, lon){
     const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1`;
 
-    const data = await fetch(url).then(r => r.json());
+    const data = await fetchJson(url, 8000);
 
     return {
         currentTemp: Math.round(data.current.temperature_2m),
@@ -416,7 +432,7 @@ async function reverseGeocode(lat, lon){
         const url =
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
 
-        const data = await fetch(url).then(r => r.json());
+        const data = await fetchJson(url, 5000);
 
         return data.locality
             || data.city
@@ -441,16 +457,36 @@ function getBrowserLocation(){
             return;
         }
 
+        // Hard backstop: some phones (especially in home-screen mode, or
+        // when the permission prompt is ignored) never fire the browser's
+        // own timeout, so we enforce one ourselves.
+        let finished = false;
+        const backstop = setTimeout(() => {
+            if(finished) return;
+            finished = true;
+            reject({ code: 3, message: 'Location timed out' });
+        }, 8000);
+
         navigator.geolocation.getCurrentPosition(
-            pos => resolve({
-                lat: pos.coords.latitude,
-                lon: pos.coords.longitude
-            }),
-            err => reject(err),
+            pos => {
+                if(finished) return;
+                finished = true;
+                clearTimeout(backstop);
+                resolve({
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude
+                });
+            },
+            err => {
+                if(finished) return;
+                finished = true;
+                clearTimeout(backstop);
+                reject(err);
+            },
             {
                 enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 600000
+                timeout: 7000,
+                maximumAge: 1800000
             }
         );
 
@@ -488,7 +524,9 @@ async function loadLocalCard(panel, trafficEvents){
             trafficEvent
         );
 
-        panel.replaceChild(card, placeholder);
+        if(placeholder.parentNode === panel){
+            panel.replaceChild(card, placeholder);
+        }
 
     }
     catch(err){
@@ -500,7 +538,9 @@ async function loadLocalCard(panel, trafficEvents){
             ? 'Location permission denied — showing default areas only'
             : 'Location unavailable — showing default areas only';
 
-        panel.replaceChild(buildMessageCard(message), placeholder);
+        if(placeholder.parentNode === panel){
+            panel.replaceChild(buildMessageCard(message), placeholder);
+        }
 
     }
 
@@ -515,8 +555,9 @@ async function loadWeather(){
     // Fetch traffic once for the whole panel, rather than once per card
     const trafficEvents = await fetchTrafficEvents();
 
-    // Local card goes first, and doesn't block the rest of the list
-    await loadLocalCard(panel, trafficEvents);
+    // Local card goes first in the list, but loads in the background so
+    // a slow location fix never blocks the other cards.
+    loadLocalCard(panel, trafficEvents);
 
     const locations = [
         { name:'Upper Hutt', lat:-41.125, lon:175.070 },
