@@ -2,10 +2,21 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1f2d">
 <title>Bulk Water Toolbox</title>
 
 <style>
+html {
+    background: #0d1f2d; /* dark base so no white shows behind the status bar */
+}
+
+body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     font-family: -apple-system, Arial, sans-serif;
