@@ -378,6 +378,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .header .logo::after { animation: none; display: none; }
 }
+
+/* ---- Index only: raised plaque edge + gloss ---- */
+.header .logo {
+    box-shadow:
+        0 1px 0 rgba(255,255,255,0.9) inset,
+        0 2px 0 #cbd5e1,
+        0 4px 0 #94a3b8,
+        0 6px 0 #64748b,
+        0 14px 24px rgba(0,0,0,0.45),
+        0 0 30px rgba(255,255,255,0.25);
+}
+.header .logo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 40%);
+    pointer-events: none;
+    z-index: 1;
+}
+.header .logo::after { z-index: 2; }
 </style>
 </head>
 
