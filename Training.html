@@ -342,7 +342,7 @@ document.addEventListener('touchstart', function(){}, {passive:true});
 <script>
 // Tap feedback: show the lift for a moment, then open the page.
 (function () {
-    var DELAY = 250; // milliseconds - raise for a longer effect
+    var DELAY = 500; // milliseconds - raise for a longer effect
     document.querySelectorAll('a.card').forEach(function (card) {
         card.addEventListener('click', function (e) {
             var href = card.getAttribute('href');
