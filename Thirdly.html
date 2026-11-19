@@ -378,7 +378,7 @@ document.addEventListener('touchstart', function(){}, {passive:true});
 <script>
 // Tap feedback: show the pop for a moment, then open the page.
 (function () {
-    var DELAY = 1000; // milliseconds - raise or lower to taste
+    var DELAY = 500; // milliseconds - raise or lower to taste
     var busy = false;
     document.querySelectorAll('a.card').forEach(function (card) {
         card.addEventListener('click', function (e) {
