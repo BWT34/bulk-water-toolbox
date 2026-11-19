@@ -281,6 +281,17 @@ body {
     transform: translateY(-3px) scale(1.07);
     filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
 }
+
+/* ---- Tap feedback (used on phones, where there is no hover) ---- */
+.card.pressed {
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.45);
+    background: rgba(255,255,255,0.26);
+}
+.card.pressed .icon img {
+    transform: translateY(-6px) scale(1.4);
+    filter: drop-shadow(0 12px 14px rgba(0,0,0,0.50));
+}
 </style>
 </head>
 
@@ -464,6 +475,31 @@ window.addEventListener('pageshow', function (e) {
 <script>
 // Lets the press effect show on iPhones
 document.addEventListener('touchstart', function(){}, {passive:true});
+</script>
+
+<script>
+// Tap feedback: show the pop for a moment, then open the page.
+(function () {
+    var DELAY = 1000; // milliseconds - raise or lower to taste
+    var busy = false;
+    document.querySelectorAll('a.card').forEach(function (card) {
+        card.addEventListener('click', function (e) {
+            var href = card.getAttribute('href');
+            if (!href || href === '#' || card.hasAttribute('onclick')) return;
+            if (card.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey) return;
+            e.preventDefault();
+            if (busy) return;
+            busy = true;
+            card.classList.add('pressed');
+            setTimeout(function () { window.location.href = href; }, DELAY);
+        });
+    });
+    // Reset if the page is restored with the Back button
+    window.addEventListener('pageshow', function () {
+        busy = false;
+        document.querySelectorAll('.card.pressed').forEach(function (c) { c.classList.remove('pressed'); });
+    });
+})();
 </script>
 </body>
 </html>
