@@ -9,10 +9,6 @@
 <title>Training Resources</title>
 
 <style>
-html {
-    background: #0d1f2d; /* dark base so no white shows behind the status bar */
-}
-
 body {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -166,6 +162,87 @@ body {
         height: 72px;
     }
 }
+
+/* ---- Logo: glossy shine sweep ---- */
+.header .logo {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.40), 0 0 30px rgba(255,255,255,0.30);
+}
+.header .logo img {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    animation: none;
+    filter: none;
+}
+.header .logo::after {
+    content: "";
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    width: 22%;
+    left: -40%;
+    transform: skewX(-20deg);
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.75), rgba(255,255,255,0));
+    animation: logoShine 6s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes logoShine {
+    0%        { left: -40%; }
+    35%, 100% { left: 140%; }
+}
+@media (max-width: 768px) {
+    .header .logo { width: 80%; max-width: 350px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .header .logo::after { animation: none; display: none; }
+}
+
+/* ---- Tile / icon lift + soft shadow ---- */
+.icon img {
+    transition: transform 0.25s ease, filter 0.25s ease;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.30));
+}
+.card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+@media (hover: hover) {
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+    }
+    .card:hover .icon img {
+        transform: translateY(-3px) scale(1.07);
+        filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+    }
+}
+.card:active {
+    transform: scale(0.97);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+.card:active .icon img {
+    transform: translateY(-3px) scale(1.07);
+    filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+}
+
+/* ---- Tap feedback (used on phones, where there is no hover) ---- */
+.card.pressed {
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+    background: rgba(255,255,255,0.26);
+}
+.card.pressed .icon img {
+    transform: translateY(-4px) scale(1.12);
+    filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+}
 </style>
 </head>
 
@@ -177,7 +254,7 @@ body {
 <!-- LOGO -->
 <div class="header">
     <!-- Replace src with where you upload your logo -->
-    <img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd">
+    <span class="logo"><img src="BWT LOGO.jpg" alt="Bulk Water Transport Ltd"></span>
 </div>
 
 <div class="title">
@@ -256,5 +333,31 @@ window.addEventListener('pageshow', function (e) {
 });
 </script>
 
+
+<script>
+// Lets the press effect show on iPhones
+document.addEventListener('touchstart', function(){}, {passive:true});
+</script>
+
+<script>
+// Tap feedback: show the lift for a moment, then open the page.
+(function () {
+    var DELAY = 250; // milliseconds - raise for a longer effect
+    document.querySelectorAll('a.card').forEach(function (card) {
+        card.addEventListener('click', function (e) {
+            var href = card.getAttribute('href');
+            if (!href || href === '#' || card.hasAttribute('onclick')) return;
+            if (card.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey) return;
+            e.preventDefault();
+            card.classList.add('pressed');
+            setTimeout(function () { window.location.href = href; }, DELAY);
+        });
+    });
+    // Clear the effect if the page is restored with the Back button
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('.card.pressed').forEach(function (c) { c.classList.remove('pressed'); });
+    });
+})();
+</script>
 </body>
 </html>
