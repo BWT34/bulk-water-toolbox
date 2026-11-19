@@ -326,6 +326,21 @@ body {
 @media (max-width: 768px) {
     .header .logo { width: 80%; max-width: 320px; }
 }
+
+/* ---- Desktop: keep the menu to 3/4 of the screen, centred ---- */
+@media (min-width: 900px) {
+    .header, .title, .grid {
+        width: 75%;
+        max-width: 1500px;
+        margin-left: auto;
+        margin-right: auto;
+        box-sizing: border-box;
+    }
+    .grid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
 </style>
 </head>
 
