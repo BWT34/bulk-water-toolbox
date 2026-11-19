@@ -254,6 +254,33 @@ body {
     z-index: 1;
 }
 .header .logo::after { z-index: 2; }
+
+/* ---- Tile / icon lift + soft shadow ---- */
+.icon img {
+    transition: transform 0.25s ease, filter 0.25s ease;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.30));
+}
+.card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+@media (hover: hover) {
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+    }
+    .card:hover .icon img {
+        transform: translateY(-3px) scale(1.07);
+        filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+    }
+}
+.card:active {
+    transform: scale(0.97);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+.card:active .icon img {
+    transform: translateY(-3px) scale(1.07);
+    filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+}
 </style>
 </head>
 
@@ -432,6 +459,11 @@ window.addEventListener('pageshow', function (e) {
         document.body.style.display = '';
     }
 });
+</script>
+
+<script>
+// Lets the press effect show on iPhones
+document.addEventListener('touchstart', function(){}, {passive:true});
 </script>
 </body>
 </html>
