@@ -233,15 +233,50 @@ body {
     filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
 }
 
+
 /* ---- Tap feedback (used on phones, where there is no hover) ---- */
 .card.pressed {
-    transform: translateY(-5px) scale(1.03);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.45);
     background: rgba(255,255,255,0.26);
 }
 .card.pressed .icon img {
-    transform: translateY(-4px) scale(1.12);
-    filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+    transform: translateY(-6px) scale(1.4);
+    filter: drop-shadow(0 12px 14px rgba(0,0,0,0.50));
+}
+
+/* ---- New logo: no box, shine only on the logo shapes ---- */
+.header .logo {
+    box-shadow: none;
+    overflow: visible;
+    border-radius: 0;
+    max-width: 560px;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.45));
+}
+.header .logo::before { display: none; }
+.header .logo::after {
+    inset: 0;
+    top: 0; bottom: 0; left: 0; right: 0;
+    width: auto;
+    transform: none;
+    background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0) 60%);
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    background-repeat: no-repeat;
+    -webkit-mask-image: url('BWT-logo-on-dark.svg');
+    mask-image: url('BWT-logo-on-dark.svg');
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation: logoShine2 6s ease-in-out infinite;
+}
+@keyframes logoShine2 {
+    0%        { background-position: 150% 0; }
+    35%, 100% { background-position: -50% 0; }
+}
+@media (max-width: 768px) {
+    .header .logo { width: 80%; max-width: 320px; }
 }
 </style>
 </head>
@@ -254,7 +289,7 @@ body {
 <!-- LOGO -->
 <div class="header">
     <!-- Replace src with where you upload your logo -->
-    <span class="logo"><img src="BWT LOGO 1.jpg" alt="Bulk Water Transport Ltd"></span>
+    <span class="logo"><img src="BWT-logo-on-dark.svg" alt="Bulk Water Transport Ltd"></span>
 </div>
 
 <div class="title">
@@ -339,22 +374,27 @@ window.addEventListener('pageshow', function (e) {
 document.addEventListener('touchstart', function(){}, {passive:true});
 </script>
 
+
 <script>
-// Tap feedback: show the lift for a moment, then open the page.
+// Tap feedback: show the pop for a moment, then open the page.
 (function () {
-    var DELAY = 250; // milliseconds - raise for a longer effect
+    var DELAY = 250; // milliseconds - raise or lower to taste
+    var busy = false;
     document.querySelectorAll('a.card').forEach(function (card) {
         card.addEventListener('click', function (e) {
             var href = card.getAttribute('href');
             if (!href || href === '#' || card.hasAttribute('onclick')) return;
             if (card.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey) return;
             e.preventDefault();
+            if (busy) return;
+            busy = true;
             card.classList.add('pressed');
             setTimeout(function () { window.location.href = href; }, DELAY);
         });
     });
-    // Clear the effect if the page is restored with the Back button
+    // Reset if the page is restored with the Back button
     window.addEventListener('pageshow', function () {
+        busy = false;
         document.querySelectorAll('.card.pressed').forEach(function (c) { c.classList.remove('pressed'); });
     });
 })();
