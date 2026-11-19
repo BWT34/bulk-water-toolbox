@@ -470,6 +470,21 @@ body {
 @media (max-width: 768px) {
     .header .logo { width: 80%; max-width: 320px; }
 }
+
+/* ---- Desktop: keep the menu to 3/4 of the screen, centred ---- */
+@media (min-width: 900px) {
+    .header, .title, .grid {
+        width: 60%;
+        max-width: 1500px;
+        margin-left: auto;
+        margin-right: auto;
+        box-sizing: border-box;
+    }
+    .grid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
 </style>
 </head>
 
@@ -668,7 +683,7 @@ document.addEventListener('touchstart', function(){}, {passive:true});
 <script>
 // Tap feedback: show the pop for a moment, then open the page.
 (function () {
-    var DELAY = 1000; // milliseconds - raise or lower to taste
+    var DELAY = 250; // milliseconds - raise or lower to taste
     var busy = false;
     document.querySelectorAll('a.card').forEach(function (card) {
         card.addEventListener('click', function (e) {
