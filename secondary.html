@@ -292,6 +292,40 @@ body {
     transform: translateY(-6px) scale(1.4);
     filter: drop-shadow(0 12px 14px rgba(0,0,0,0.50));
 }
+
+/* ---- New logo: no box, shine only on the logo shapes ---- */
+.header .logo {
+    box-shadow: none;
+    overflow: visible;
+    border-radius: 0;
+    max-width: 560px;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.45));
+}
+.header .logo::before { display: none; }
+.header .logo::after {
+    inset: 0;
+    top: 0; bottom: 0; left: 0; right: 0;
+    width: auto;
+    transform: none;
+    background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0) 60%);
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    background-repeat: no-repeat;
+    -webkit-mask-image: url('BWT-logo-on-dark.svg');
+    mask-image: url('BWT-logo-on-dark.svg');
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation: logoShine2 6s ease-in-out infinite;
+}
+@keyframes logoShine2 {
+    0%        { background-position: 150% 0; }
+    35%, 100% { background-position: -50% 0; }
+}
+@media (max-width: 768px) {
+    .header .logo { width: 80%; max-width: 320px; }
+}
 </style>
 </head>
 
@@ -304,7 +338,7 @@ body {
 <!-- LOGO -->
 <div class="header">
     <!-- Replace src with where you upload your logo -->
-    <span class="logo"><img src="BWT LOGO 1.jpg" alt="Bulk Water Transport Ltd"></span>
+    <span class="logo"><img src="BWT-logo-on-dark.svg" alt="Bulk Water Transport Ltd"></span>
 </div>
 
 <div class="title">
