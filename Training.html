@@ -232,6 +232,17 @@ body {
     transform: translateY(-3px) scale(1.07);
     filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
 }
+
+/* ---- Tap feedback (used on phones, where there is no hover) ---- */
+.card.pressed {
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+    background: rgba(255,255,255,0.26);
+}
+.card.pressed .icon img {
+    transform: translateY(-4px) scale(1.12);
+    filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45));
+}
 </style>
 </head>
 
@@ -326,6 +337,27 @@ window.addEventListener('pageshow', function (e) {
 <script>
 // Lets the press effect show on iPhones
 document.addEventListener('touchstart', function(){}, {passive:true});
+</script>
+
+<script>
+// Tap feedback: show the lift for a moment, then open the page.
+(function () {
+    var DELAY = 250; // milliseconds - raise for a longer effect
+    document.querySelectorAll('a.card').forEach(function (card) {
+        card.addEventListener('click', function (e) {
+            var href = card.getAttribute('href');
+            if (!href || href === '#' || card.hasAttribute('onclick')) return;
+            if (card.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey) return;
+            e.preventDefault();
+            card.classList.add('pressed');
+            setTimeout(function () { window.location.href = href; }, DELAY);
+        });
+    });
+    // Clear the effect if the page is restored with the Back button
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('.card.pressed').forEach(function (c) { c.classList.remove('pressed'); });
+    });
+})();
 </script>
 </body>
 </html>
