@@ -29,6 +29,9 @@
   const POLICE_SECONDS = 300;     // (only used by the ?police=1 test mode)
   const MILK_SECONDS = 25;        // a Bulk Milk truck comes past about this often
   const SPEED = 240;              // how fast the truck "drives" (pixels per second on a 900 px tall screen)
+  const SHOW_TRAFFIC_BOARD = true;   // an NZTA-style overhead message board with the live road events for the area below
+  const TRAFFIC_URL = 'https://bwt-traffic-proxy.bulkwatertransport.workers.dev';   // same traffic feed the weather page uses
+  const TRAFFIC_REGIONS = ['WELLINGTON', 'WAIRARAPA'];   // which NZTA regions to show
   const PLACES = ['Wellington', 'Porirua', 'Kapiti', 'Otaki', 'Levin', 'Greytown',
                   'Carterton', 'Masterton', 'Martinborough', 'Palmerston North', 'Feilding', 'Upper Hutt'];
   // Testing: add ?hour=14 to the address to freeze the time of day, or ?fast=1 to watch a whole day go by
@@ -106,6 +109,7 @@
   const signs = [];
   let signTimer = 6000, signIdx = 0, nameIdx = 0;
   if (params.has('board')) { signIdx = 2; signTimer = 300; }
+  if (params.has('vms')) { signIdx = 3; signTimer = 300; }
 
   // ---------- sky ----------
   function drawSky(h, t) {
@@ -1366,12 +1370,84 @@
       }
     });
   }
+  // ---------- live NZTA road events -> overhead message board ----------
+  let vmsEvents = [], vmsOk = false, vmsIdx = 0;
+  const VMS_DEMO = [   // only used with ?vmsdemo=1 (testing without the live feed)
+    { locationArea: 'State Highway 2 Remutaka Hill', eventType: 'Road Works', impact: 'Delays', region: { name: 'Wellington' } },
+    { locationArea: 'SH1 Paekakariki', eventType: 'Crash', impact: 'Caution', region: { name: 'Wellington' } },
+    { locationArea: 'SH2 Featherston', eventType: 'Flooding', impact: 'Road Closed', region: { name: 'Wairarapa' } }
+  ];
+  const vmsUp = (x) => String(x || '').replace(/\s+/g, ' ').replace(/[<>]/g, '').trim().toUpperCase();
+  const vmsRegion = (n) => vmsUp(n).replace(/[ĀĂĄ]/g, 'A').replace(/[ĒĔĖĘĚ]/g, 'E').replace(/[ĪĬĮİ]/g, 'I').replace(/[ŌŎŐ]/g, 'O').replace(/[ŪŬŮŰŲ]/g, 'U');
+  function loadTraffic() {
+    if (params.has('vmsdemo')) { vmsEvents = VMS_DEMO; vmsOk = true; return; }
+    if (!SHOW_TRAFFIC_BOARD) return;
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 10000);
+    fetch(TRAFFIC_URL, { signal: ac.signal }).then(r => r.json()).then(d => {
+      const list = (d && d.response && d.response.roadevent) || [];
+      vmsEvents = list.filter(e => e.status === 'Active' && (!e.eventIsland || e.eventIsland === 'North Island') &&
+                                   TRAFFIC_REGIONS.indexOf(vmsRegion(e.region && e.region.name)) >= 0);
+      vmsOk = true;
+    }).catch(() => {}).then(() => clearTimeout(to));
+  }
+  loadTraffic(); setInterval(loadTraffic, 5 * 60 * 1000);
+  function vmsRank(l) { return l[2] === 'ROAD CLOSED' ? 0 : l[2] === 'USE DETOUR' ? 1 : l[2] === 'EXPECT DELAYS' ? 2 : l[2] === 'DRIVE WITH CARE' ? 3 : 4; }
+  function vmsLines(e) {
+    const cut = (x) => x.length > 30 ? x.slice(0, 29).trim() + '…' : x;
+    const where = vmsUp(e.locationArea || (e.region && e.region.name) || 'WELLINGTON REGION').replace(/STATE HIGHWAY\s*/g, 'SH');
+    const what = vmsUp(e.eventType || e.eventDescription || 'ROAD EVENT');
+    const imp = vmsUp(e.impact);
+    let act = 'DRIVE TO CONDITIONS';
+    if (/CLOS/.test(imp)) act = 'ROAD CLOSED'; else if (/DETOUR/.test(imp)) act = 'USE DETOUR';
+    else if (/DELAY/.test(imp)) act = 'EXPECT DELAYS'; else if (/CAUTION/.test(imp)) act = 'DRIVE WITH CARE';
+    else if (/CLOS/.test(what)) act = 'ROAD CLOSED';
+    return [cut(where), cut(what), act];
+  }
+  function pickVmsLines() {                                       // each time the board comes past it shows the next event, most serious first
+    if (!vmsOk) return ['TRAFFIC INFORMATION', 'NOT AVAILABLE', 'CHECK NZTA JOURNEYS'];
+    const all = vmsEvents.map(vmsLines).sort((a, b) => vmsRank(a) - vmsRank(b));
+    if (!all.length) return ['WELLINGTON & WAIRARAPA', 'NO REPORTED DELAYS', 'DRIVE TO CONDITIONS'];
+    return all[vmsIdx++ % all.length];
+  }
+  function makeVmsFace(lines) {                                   // amber LED look: bright text with a dark grid over it
+    const c = document.createElement('canvas'); c.width = 880; c.height = 270;
+    const g = c.getContext('2d');
+    g.fillStyle = '#0b0b0d'; g.fillRect(0, 0, 880, 270);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffc84a'; g.shadowColor = 'rgba(255,180,40,1)'; g.shadowBlur = 14;
+    lines.forEach((ln, i) => {
+      let size = 64; g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`;
+      while (g.measureText(ln).width > 820 && size > 26) { size -= 2; g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`; }
+      g.fillText(ln, 440, 48 + i * 87);
+    });
+    g.shadowBlur = 0; g.fillStyle = '#0b0b0d';
+    for (let x = 0; x < 880; x += 6) g.fillRect(x, 0, 1, 270);
+    for (let y = 0; y < 270; y += 6) g.fillRect(0, y, 880, 1);
+    return c;
+  }
+  function drawVms(sg, baseY, light) {
+    const k = s, bw = 480 * k, bh = bw * 270 / 880, bx = sg.x, bt = baseY - 360 * k, night = light.night;
+    const steel = rgb(mix([150, 150, 150], [55, 60, 70], night));
+    ctx.fillStyle = steel;
+    ctx.fillRect(bx - 24 * k, bt - 24 * k, 12 * k, baseY - bt + 24 * k);                  // left post
+    ctx.fillRect(bx + bw + 12 * k, bt - 24 * k, 12 * k, baseY - bt + 24 * k);              // right post
+    ctx.fillRect(bx - 24 * k, bt - 28 * k, bw + 60 * k, 10 * k);                          // beam across the top
+    ctx.fillRect(bx + bw * .18, bt - 18 * k, 6 * k, 18 * k); ctx.fillRect(bx + bw * .82, bt - 18 * k, 6 * k, 18 * k);   // hangers
+    ctx.fillStyle = '#16181c'; ctx.beginPath(); ctx.roundRect(bx - 8 * k, bt - 8 * k, bw + 16 * k, bh + 16 * k, 8 * k); ctx.fill();
+    if (sg.face) ctx.drawImage(sg.face, bx, bt, bw, bh);
+    ctx.globalCompositeOperation = 'lighter';                                              // soft amber glow, stronger at night
+    const gl = ctx.createRadialGradient(bx + bw / 2, bt + bh / 2, 0, bx + bw / 2, bt + bh / 2, bw * .62);
+    gl.addColorStop(0, 'rgba(255,170,40,' + (0.10 + 0.22 * night).toFixed(3) + ')'); gl.addColorStop(1, 'rgba(255,170,40,0)');
+    ctx.fillStyle = gl; ctx.fillRect(bx - bw * .3, bt - bh, bw * 1.6, bh * 3);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   function drawSigns(light) {
     const baseY = roadTop() + 3 * s;
     for (const sg of signs) {
-      if (!sg.board && !sg.w) { ctx.font = `bold ${29 * s}px Arial, sans-serif`; sg.w = Math.max(230 * s, ctx.measureText(sg.name.toUpperCase()).width + 48 * s); }   // wide enough for the longest name
-      const mid = sg.board ? 180 * s : sg.w / 2;
+      if (!sg.board && !sg.vms && !sg.w) { ctx.font = `bold ${29 * s}px Arial, sans-serif`; sg.w = Math.max(230 * s, ctx.measureText(sg.name.toUpperCase()).width + 48 * s); }   // wide enough for the longest name
+      const mid = sg.vms ? 240 * s : (sg.board ? 180 * s : sg.w / 2);
       ctx.save(); ctx.translate(0, hillY(sg.x + mid));
+      if (sg.vms) { drawVms(sg, baseY, light); ctx.restore(); continue; }       // steel gantry: a gust doesn't blow it over
       if (windAmt > 0.02 || sg.flat) {                        // a strong gust blows the sign right over; once flat it stays down until it scrolls off screen
         let fall = smooth(0.3, 0.85, windAmt); if (fall > 0.97) sg.flat = true; if (sg.flat) fall = 1;
         const px = sg.x + mid;
@@ -2244,13 +2320,15 @@
     drawRoad(light);
 
     signTimer -= dt;
-    if (signTimer <= 0 && (factory || paddock) && signIdx % 3 !== 2) signTimer = 1500;      // no other place-name signs while the factory or paddock (with its own Seaview / Featherston sign) is on screen: hold it back
+    if (signTimer <= 0 && (factory || paddock) && signIdx % 4 < 2) signTimer = 1500;      // no other place-name signs while the factory or paddock (with its own Seaview / Featherston sign) is on screen: hold it back
     if (signTimer <= 0) {
       signTimer = 26000;
-      if (signIdx++ % 3 === 2) signs.push({ x: W + 40, board: true });
+      const kind = signIdx++ % 4;                                  // place, place, logo billboard, traffic message board
+      if (kind === 2) signs.push({ x: W + 40, board: true });
+      else if (kind === 3 && SHOW_TRAFFIC_BOARD) { const ln = pickVmsLines(); signs.push({ x: W + 40, vms: true, face: makeVmsFace(ln) }); }
       else { const nm = PLACES[nameIdx++ % PLACES.length]; signs.push({ x: W + 40, name: nm }); }
     }
-    for (let i = signs.length - 1; i >= 0; i--) { signs[i].x -= v * dt / 1000; if (signs[i].x < -420 * s) signs.splice(i, 1); }
+    for (let i = signs.length - 1; i >= 0; i--) { signs[i].x -= v * dt / 1000; if (signs[i].x < -(signs[i].vms ? 620 : 420) * s) signs.splice(i, 1); }
     updateRadar(dt, v);
     updateWorks(dt, v, light);
     updateBroke(dt, v, light);
