@@ -1373,9 +1373,9 @@
   // ---------- live NZTA road events -> overhead message board ----------
   let vmsEvents = [], vmsOk = false, vmsIdx = 0;
   const VMS_DEMO = [   // only used with ?vmsdemo=1 (testing without the live feed)
-    { locationArea: 'State Highway 2 Remutaka Hill', eventType: 'Road Works', impact: 'Delays', region: { name: 'Wellington' } },
-    { locationArea: 'SH1 Paekakariki', eventType: 'Crash', impact: 'Caution', region: { name: 'Wellington' } },
-    { locationArea: 'SH2 Featherston', eventType: 'Flooding', impact: 'Road Closed', region: { name: 'Wairarapa' } }
+    { locationArea: 'State Highway 2 Remutaka Hill', eventType: 'Road Works', impact: 'Delays', eventComments: 'Stop/go traffic management. Allow extra time.', region: { name: 'Wellington' } },
+    { locationArea: 'SH1 Paekakariki', eventType: 'Crash', impact: 'Caution', eventComments: 'Crash blocking the left lane northbound. Emergency services at scene.', region: { name: 'Wellington' } },
+    { locationArea: 'SH2 Featherston', eventType: 'Flooding', impact: 'Road Closed', eventComments: 'Detour via Western Lake Road.', region: { name: 'Wairarapa' } }
   ];
   const vmsUp = (x) => String(x || '').replace(/\s+/g, ' ').replace(/[<>]/g, '').trim().toUpperCase();
   const vmsRegion = (n) => vmsUp(n).replace(/[ĀĂĄ]/g, 'A').replace(/[ĒĔĖĘĚ]/g, 'E').replace(/[ĪĬĮİ]/g, 'I').replace(/[ŌŎŐ]/g, 'O').replace(/[ŪŬŮŰŲ]/g, 'U');
@@ -1391,7 +1391,7 @@
     }).catch(() => {}).then(() => clearTimeout(to));
   }
   loadTraffic(); setInterval(loadTraffic, 5 * 60 * 1000);
-  function vmsRank(l) { return l[2] === 'ROAD CLOSED' ? 0 : l[2] === 'USE DETOUR' ? 1 : l[2] === 'EXPECT DELAYS' ? 2 : l[2] === 'DRIVE WITH CARE' ? 3 : 4; }
+  function vmsRank(l) { return /CRASH|ACCIDENT|COLLISION/.test(l[1]) ? -1 : l[2] === 'ROAD CLOSED' ? 0 : l[2] === 'USE DETOUR' ? 1 : l[2] === 'EXPECT DELAYS' ? 2 : l[2] === 'DRIVE WITH CARE' ? 3 : 4; }
   function vmsLines(e) {
     const cut = (x) => x.length > 30 ? x.slice(0, 29).trim() + '…' : x;
     const where = vmsUp(e.locationArea || (e.region && e.region.name) || 'WELLINGTON REGION').replace(/STATE HIGHWAY\s*/g, 'SH');
@@ -1401,7 +1401,10 @@
     if (/CLOS/.test(imp)) act = 'ROAD CLOSED'; else if (/DETOUR/.test(imp)) act = 'USE DETOUR';
     else if (/DELAY/.test(imp)) act = 'EXPECT DELAYS'; else if (/CAUTION/.test(imp)) act = 'DRIVE WITH CARE';
     else if (/CLOS/.test(what)) act = 'ROAD CLOSED';
-    return [cut(where), cut(what), act];
+    let det = vmsUp(e.eventComments || e.eventDescription || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(/[.!;]/)[0].trim();
+    if (det === what || det === where) det = '';
+    if (det.length > 44) det = det.slice(0, 43).trim() + '…';
+    return det ? [cut(where), cut(what), act, det] : [cut(where), cut(what), act];
   }
   function pickVmsLines() {                                       // each time the board comes past it shows the next event, most serious first
     if (!vmsOk) return ['TRAFFIC INFORMATION', 'NOT AVAILABLE', 'CHECK NZTA JOURNEYS'];
@@ -1410,22 +1413,24 @@
     return all[vmsIdx++ % all.length];
   }
   function makeVmsFace(lines) {                                   // amber LED look: bright text with a dark grid over it
-    const c = document.createElement('canvas'); c.width = 880; c.height = 270;
+    const c = document.createElement('canvas'); c.width = 880; c.height = 340;
     const g = c.getContext('2d');
-    g.fillStyle = '#0b0b0d'; g.fillRect(0, 0, 880, 270);
+    g.fillStyle = '#0b0b0d'; g.fillRect(0, 0, 880, 340);
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffc84a'; g.shadowColor = 'rgba(255,180,40,1)'; g.shadowBlur = 14;
+    const n = lines.length, gap = n > 3 ? 78 : 90;
     lines.forEach((ln, i) => {
-      let size = 64; g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`;
-      while (g.measureText(ln).width > 820 && size > 26) { size -= 2; g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`; }
-      g.fillText(ln, 440, 48 + i * 87);
+      let size = i < 3 ? (n > 3 ? 58 : 64) : 44;                  // the detail line is a little smaller
+      g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`;
+      while (g.measureText(ln).width > 820 && size > 24) { size -= 2; g.font = `bold ${size}px "Arial Narrow", Arial, sans-serif`; }
+      g.fillText(ln, 440, 170 + (i - (n - 1) / 2) * gap);
     });
     g.shadowBlur = 0; g.fillStyle = '#0b0b0d';
-    for (let x = 0; x < 880; x += 6) g.fillRect(x, 0, 1, 270);
-    for (let y = 0; y < 270; y += 6) g.fillRect(0, y, 880, 1);
+    for (let x = 0; x < 880; x += 6) g.fillRect(x, 0, 1, 340);
+    for (let y = 0; y < 340; y += 6) g.fillRect(0, y, 880, 1);
     return c;
   }
   function drawVms(sg, baseY, light) {
-    const k = s, bw = 480 * k, bh = bw * 270 / 880, bx = sg.x, bt = baseY - 360 * k, night = light.night;
+    const k = s, bw = 480 * k, bh = bw * 340 / 880, bx = sg.x, bt = baseY - 360 * k, night = light.night;
     const steel = rgb(mix([150, 150, 150], [55, 60, 70], night));
     ctx.fillStyle = steel;
     ctx.fillRect(bx - 24 * k, bt - 24 * k, 12 * k, baseY - bt + 24 * k);                  // left post
