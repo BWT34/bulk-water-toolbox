@@ -3,14 +3,16 @@
 
     // ---- Config ----
     const API_KEY = 'AIzaSyBm0CGfQuGewRjmc2wsKMx50QxUND2Puqk';
-    const START_LABEL_TEXT = 'Start Location'; // dropdown (Choice) field, matched by label
-    // Dropdown choice -> real start address used for the distance calculation
-    const DEPOTS = {
-        'upper hutt': '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand',
-        'palmerston north': '14a Savage Crescent, West End, Palmerston North, New Zealand'
-    };
+    const START_LEGEND_MATCH = /start location/i;
     const END_LABEL_TEXT = 'Address'; // single-line field, matched by label — not a fieldset
     const DISTANCE_LABEL_TEXT = 'Distance (KM)';
+
+    // ---- Whey run: depot -> Zanzy Zeus -> Greytown -> depot ----
+    const SERVICE_LABEL_TEXT = 'Services Type';  // label of the dropdown on the Customer Bulk Water Delivery Order form
+    const WHEY_MATCH = /whey/i;                  // service type value that triggers the whey route
+    const WHEY_DEPOT = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
+    const WHEY_STOP_1 = '120 Hutt Park Road, Gracefield, Lower Hutt 5010, New Zealand'; // Zany Zeus Factory
+    const WHEY_STOP_2 = '112 Wards Line, Greytown, New Zealand';
 
     // ---- Small status indicator (not a full route card — this one
     // just needs to quietly fill in a number) ----
@@ -26,6 +28,30 @@
 
     function hideStatus() {
         panel.style.display = 'none';
+    }
+
+    // ---- Find an address fieldset by its legend text, same
+    // approach that already worked for the delivery-order page ----
+    function getAddressFromFieldset(legendMatch) {
+
+        const fieldsets = document.querySelectorAll('fieldset');
+
+        for (const fs of fieldsets) {
+            const legend = fs.querySelector('legend');
+            if (!legend || !legendMatch.test(legend.textContent.trim())) continue;
+
+            const inputs = fs.querySelectorAll('input.el-input__inner, input[type="text"]');
+            const parts = Array.from(inputs)
+                .map(i => (i.value || '').trim())
+                .filter(v => v.length > 0);
+
+            if (parts.length > 0) {
+                return parts.join(', ') + ', New Zealand';
+            }
+        }
+
+        return null;
+
     }
 
     // ---- Find any field's actual input by its visible label text
@@ -51,67 +77,6 @@
 
         return null;
 
-    }
-
-    // ---- Start Location dropdown: read the selected choice and map it to a depot address ----
-    // Robust lookup of a field's control by its label (same logic the quote pop-up uses):
-    // follow the label's "for", else the first visible input in the label's own field block.
-    const START_FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select';
-    function startControlForLabel(label) {
-        const forId = label.getAttribute('for');
-        const linked = forId ? document.getElementById(forId) : null;
-        if (linked) {
-            if (linked.matches(START_FIELD_SELECTOR)) return linked;
-            const inner = linked.querySelector(START_FIELD_SELECTOR);
-            if (inner) return inner;
-        }
-        let box = label.parentElement;
-        for (let i = 0; i < 4 && box; i++, box = box.parentElement) {
-            if (box.querySelectorAll('label.cog-label').length > 1) break;
-            const found = box.querySelector(START_FIELD_SELECTOR);
-            if (found) return found;
-        }
-        return null;
-    }
-    function startControlText(el) {
-        if (!el) return '';
-        if (el.tagName === 'SELECT') return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
-        return el.value || '';
-    }
-
-    function findStartControl() {
-        const target = normalizeLabelText(START_LABEL_TEXT);
-        for (const label of document.querySelectorAll('label.cog-label')) {
-            if (normalizeLabelText(label.textContent) !== target) continue;
-            const el = startControlForLabel(label);
-            if (el) return el;
-        }
-        return null;
-    }
-
-    // Some forms (e.g. the Daily Service Delivery Sheet) have Start Location as an ADDRESS field
-    // (a fieldset with a legend) instead of the Upper Hutt / Palmerston North dropdown.
-    const START_LEGEND_MATCH = /start location/i;
-    function findStartFieldset() {
-        for (const fs of document.querySelectorAll('fieldset')) {
-            const legend = fs.querySelector('legend');
-            if (legend && START_LEGEND_MATCH.test(legend.textContent.trim())) return fs;
-        }
-        return null;
-    }
-    function getStartFromFieldset() {
-        const fs = findStartFieldset();
-        if (!fs) return null;
-        const parts = Array.from(fs.querySelectorAll('input.el-input__inner, input[type="text"]'))
-            .map(i => (i.value || '').trim()).filter(Boolean);
-        return parts.length ? parts.join(', ') + ', New Zealand' : null;
-    }
-
-    function getStartAddress() {
-        const key = startControlText(findStartControl()).trim().toLowerCase();
-        if (DEPOTS[key]) return DEPOTS[key];
-        for (const name in DEPOTS) if (key.includes(name)) return DEPOTS[name];
-        return getStartFromFieldset();      // no dropdown on this form: use the Start Location address fields
     }
 
     function getEndAddress() {
@@ -140,6 +105,71 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
         input.dispatchEvent(new Event('blur', { bubbles: true }));
 
+    }
+
+    // ---- Read the Service Type (works for a dropdown, radio buttons or a text-style field) ----
+    function getServiceType() {
+        const input = findInputByLabelText(SERVICE_LABEL_TEXT);
+        if (input && (input.value || '').trim()) return input.value.trim();
+
+        const target = normalizeLabelText(SERVICE_LABEL_TEXT);
+        for (const fs of document.querySelectorAll('fieldset')) {
+            const legend = fs.querySelector('legend');
+            if (!legend || normalizeLabelText(legend.textContent) !== target) continue;
+            const checked = fs.querySelector('input:checked');
+            if (checked) {
+                const lab = checked.closest('label') || document.querySelector('label[for="' + checked.id + '"]');
+                return ((lab && lab.textContent) || checked.value || '').trim();
+            }
+            const sel = fs.querySelector('input.el-input__inner');
+            if (sel && sel.value) return sel.value.trim();
+        }
+        return '';
+    }
+
+    function isWhey() { return WHEY_MATCH.test(getServiceType()); }
+
+    function fillDistance(km) {
+        const distanceInput = findInputByLabelText(DISTANCE_LABEL_TEXT);
+        if (!distanceInput) {
+            showStatus('Distance field not found on page');
+            return;
+        }
+        setVueInputValue(distanceInput, km);
+        showStatus('Distance: ' + km + ' km');
+        setTimeout(hideStatus, 4000);
+    }
+
+    function legKm(origin, destination) {
+        return new Promise((resolve, reject) => {
+            new google.maps.DistanceMatrixService().getDistanceMatrix({
+                origins: [origin],
+                destinations: [destination],
+                travelMode: 'DRIVING',
+                unitSystem: google.maps.UnitSystem.METRIC
+            }, (response, status) => {
+                if (status !== 'OK') { reject('Distance Matrix error: ' + status); return; }
+                const el = response.rows[0].elements[0];
+                if (el.status !== 'OK') { reject('No route: ' + origin + ' -> ' + destination); return; }
+                resolve(el.distance.value / 1000);
+            });
+        });
+    }
+
+    function calculateWheyRun() {
+        showStatus('Calculating whey run…');
+        Promise.all([
+            legKm(WHEY_DEPOT, WHEY_STOP_1),
+            legKm(WHEY_STOP_1, WHEY_STOP_2),
+            legKm(WHEY_STOP_2, WHEY_DEPOT)
+        ]).then(legs => {
+            const total = legs[0] + legs[1] + legs[2];
+            console.log('BWT whey run legs (km):', legs.map(l => l.toFixed(2)), 'total:', total.toFixed(2));
+            fillDistance(total.toFixed(2));
+        }).catch(err => {
+            console.log('BWT whey run error:', err);
+            showStatus('Whey distance calc failed');
+        });
     }
 
     // ---- Distance calculation via Google ----
@@ -174,7 +204,7 @@
                 return;
             }
 
-            const distanceKm = (el.distance.value / 1000 * 2).toFixed(2);
+            const distanceKm = (el.distance.value / 1000).toFixed(2);
 
             const distanceInput = findInputByLabelText(DISTANCE_LABEL_TEXT);
 
@@ -199,6 +229,8 @@
     let debounceTimer = null;
     let lastStart = null;
     let lastEnd = null;
+    let lastMode = null;
+    let lastService = null;
 
     function handleAddressChange() {
 
@@ -206,7 +238,17 @@
 
         debounceTimer = setTimeout(() => {
 
-            const start = getStartAddress();
+            // Whey runs use the fixed route, whatever the addresses say
+            if (isWhey()) {
+                if (lastMode === 'whey') return;
+                lastMode = 'whey';
+                lastStart = null; lastEnd = null;
+                ensureMapsLoaded(() => calculateWheyRun());
+                return;
+            }
+            lastMode = 'normal';
+
+            const start = getAddressFromFieldset(START_LEGEND_MATCH);
             const end = getEndAddress();
 
             if (!start || !end) return;
@@ -218,6 +260,28 @@
             ensureMapsLoaded(() => calculateAndFillDistance(start, end));
 
         }, 1200);
+
+    }
+
+    function attachListenersToFieldset(legendMatch) {
+
+        const fieldsets = document.querySelectorAll('fieldset');
+
+        for (const fs of fieldsets) {
+            const legend = fs.querySelector('legend');
+            if (!legend || !legendMatch.test(legend.textContent.trim())) continue;
+
+            const inputs = fs.querySelectorAll('input.el-input__inner, input[type="text"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', handleAddressChange);
+                input.addEventListener('blur', handleAddressChange);
+            });
+
+            return true;
+
+        }
+
+        return false;
 
     }
 
@@ -235,14 +299,11 @@
 
     function watchForFields() {
 
-        const startFound = !!findStartControl() || !!findStartFieldset();
+        const startFound = attachListenersToFieldset(START_LEGEND_MATCH);
         const endFound = attachListenerToLabeledInput(END_LABEL_TEXT);
 
         if (startFound && endFound) {
             console.log('BWT FAF: both Start Location and Address fields found, watching for changes.');
-            // The dropdown doesn't fire normal input events, so check it once a second
-            // (handleAddressChange only recalculates when the start or end actually changed)
-            setInterval(handleAddressChange, 2000);   // must be longer than the 1.2 s debounce, or the debounce never completes
             // Run once immediately in case fields are already filled
             // (e.g. Order Lookup already populated the address)
             handleAddressChange();
@@ -250,11 +311,6 @@
         }
 
         console.log('BWT FAF: still waiting — Start Location found:', startFound, '| Address found:', endFound);
-        if (!startFound && !window.__bwtFafListed) {      // once: list what IS on the page so the label can be matched
-            window.__bwtFafListed = true;
-            console.log('BWT FAF: labels on page:', Array.from(document.querySelectorAll('label.cog-label')).map(l => l.textContent.trim()));
-            console.log('BWT FAF: fieldset legends on page:', Array.from(document.querySelectorAll('fieldset legend')).map(l => l.textContent.trim()));
-        }
 
         // Not all fields rendered yet — CognitoForms is a SPA
         setTimeout(watchForFields, 500);
@@ -262,6 +318,15 @@
     }
 
     watchForFields();
+
+    // Re-check whenever the Service Type changes (it may be a dropdown or radio buttons)
+    setInterval(() => {
+        const svc = getServiceType();
+        if (svc !== lastService) {
+            lastService = svc;
+            handleAddressChange();
+        }
+    }, 1000);
 
     function ensureMapsLoaded(callback) {
 
