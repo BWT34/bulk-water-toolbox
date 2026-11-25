@@ -11,8 +11,25 @@
     const SERVICE_LABEL_TEXT = 'Services Type';  // label of the dropdown on the Customer Bulk Water Delivery Order form
     const WHEY_MATCH = /whey/i;                  // service type value that triggers the whey route
     const WHEY_DEPOT = '34 Montgomery Crescent, Clouston Park, Upper Hutt, New Zealand';
-    const WHEY_STOP_1 = '120 Hutt Park Road, Gracefield, Lower Hutt 5010, New Zealand'; // Zany Zeus Factory
+    const WHEY_STOP_1 = '120 Hutt Park Road, Gracefield, Lower Hutt 5010, New Zealand'; // Zany Zeus Factory (truck enters from the Hutt Park Rd side)
     const WHEY_STOP_2 = '112 Wards Line, Greytown, New Zealand';
+
+    // ---- FAF for the Whey run (read from the shared faf-rates.js, so rate changes are made in one place) ----
+    const WHEY_FAF_LABEL_TEXT = 'Delivery FAF';   // <-- label of the NEW plain number field on the delivery form (Power Automate reads this for Whey)
+    const RATES_FILE = 'faf-rates.js';            // sits next to bwt-cartage-quote.html
+    const SCRIPT_SRC = document.currentScript && document.currentScript.src;
+    const RATES_URL = SCRIPT_SRC
+        ? new URL('../' + RATES_FILE, SCRIPT_SRC).href   // this script lives in the js folder, the rates file one level up
+        : new URL(RATES_FILE, location.href).href;
+
+    function ensureRatesLoaded(callback) {
+        if (typeof window.BWT_fafRate === 'function') { callback(); return; }
+        const sc = document.createElement('script');
+        sc.src = RATES_URL + '?t=' + Date.now();   // always pick up the latest rates
+        sc.onload = callback;
+        sc.onerror = () => { console.log('BWT whey FAF: could not load', RATES_URL); callback(); };
+        document.head.appendChild(sc);
+    }
 
     // ---- Small status indicator (not a full route card — this one
     // just needs to quietly fill in a number) ----
@@ -140,6 +157,26 @@
         setTimeout(hideStatus, 4000);
     }
 
+    // Price the whole Whey run (the total km is the round trip) and put it in the Delivery FAF field
+    function fillWheyFaf(totalKm) {
+        ensureRatesLoaded(() => {
+            if (typeof window.BWT_fafRate !== 'function') { showStatus('FAF rates file not loaded'); return; }
+            const rate = window.BWT_fafRate(totalKm);
+            if (rate === null) { showStatus('Whey run is outside the rate schedule'); return; }
+            const field = findInputByLabelText(WHEY_FAF_LABEL_TEXT);
+            if (!field) {
+                showStatus('Delivery FAF field not found on page');
+                console.log('Could not find input for label:', WHEY_FAF_LABEL_TEXT);
+                console.log('Labels on page:', Array.from(document.querySelectorAll('label.cog-label')).map(l => l.textContent.trim()));
+                return;
+            }
+            setVueInputValue(field, rate.toFixed(2));
+            showStatus('Distance: ' + totalKm.toFixed(2) + ' km  |  FAF: $' + rate.toFixed(2));
+            setTimeout(hideStatus, 6000);
+            console.log('BWT whey FAF:', rate.toFixed(2), 'for', totalKm.toFixed(2), 'km');
+        });
+    }
+
     function legKm(origin, destination) {
         return new Promise((resolve, reject) => {
             new google.maps.DistanceMatrixService().getDistanceMatrix({
@@ -166,6 +203,7 @@
             const total = legs[0] + legs[1] + legs[2];
             console.log('BWT whey run legs (km):', legs.map(l => l.toFixed(2)), 'total:', total.toFixed(2));
             fillDistance(total.toFixed(2));
+            fillWheyFaf(total);
         }).catch(err => {
             console.log('BWT whey run error:', err);
             showStatus('Whey distance calc failed');
