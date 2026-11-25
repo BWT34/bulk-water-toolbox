@@ -118,6 +118,7 @@
   <div class="foot">Indicative only &ndash; the final price is confirmed on the order. Rates per the Rural Water Delivery cartage schedule dated 8 Nov 2026.</div>
 </div>
 
+<script src="faf-rates.js"></script>
 <script>
 (function () {
   // ---- Config ----
@@ -149,7 +150,8 @@
   // Internal names: form builder > Settings > Developer Mode > "Customize Field Names?" shows them under each field.
 
   // Round-trip km upper limit -> rate. Matches the 16 Nov 2026 schedule.
-  const BANDS = [
+  // The rates normally come from faf-rates.js (edit them there). The list below is only a fallback if that file can't be loaded.
+  const BANDS = (window.BWT_FAF_BANDS && window.BWT_FAF_BANDS.length) ? window.BWT_FAF_BANDS : [
     { max: 10,  rate: 3.20 },
     { max: 20,  rate: 6.40 },
     { max: 30,  rate: 9.60 },
